@@ -36,11 +36,27 @@ const registerUser = async (req, res) => {
 
     await newUser.save();
     res.status(201).json({ message: "User registered successfully", user: newUser });
-
   } catch (error) {
     console.error("Error in user registration:", error);
     res.status(500).json({ error: "Internal Server Error", details: error.message });
   }
 };
 
-module.exports = { registerUser };
+// Update admin profile
+const updateAdminProfile = async (req, res) => {
+  try {
+    const adminId = req.user.id;
+    const updates = req.body.profile; // Expecting profile object in req.body.profile
+    const user = await User.findById(adminId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized or not an admin' });
+    }
+    user.profile = { ...user.profile, ...updates };
+    await user.save();
+    return res.status(200).json({ message: 'Profile updated successfully', profile: user.profile });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error updating profile', error: error.message });
+  }
+};
+
+module.exports = { registerUser, updateAdminProfile };

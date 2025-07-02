@@ -18,6 +18,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['customer', 'admin'],
         default: 'customer', // Fixed: Changed 'user' to 'customer' to match enum
+    },
+    profile: {
+        type: Object, // You can change this to a more specific schema if needed
+        default: {},
     }
 }, { timestamps: true }); // ✅ Fixed: timestamps should be outside the field definitions
 

@@ -74,104 +74,98 @@ const SidebarProfile = () => {
   };
 
   return (
-    <div className="flex">
+    <div className="d-flex">
       {/* Sidebar */}
       <div
-        className={`bg-red-500 text-white h-screen p-5 transition-all duration-300 ${
-          isOpen ? "w-64" : "w-20"
+        className={`bg-danger text-white p-3 transition-all ${
+          isOpen ? "col-3" : "col-1"
         }`}
+        style={{ minHeight: "100vh" }}
       >
-        {/* Hamburger Menu */}
-        <div className="flex justify-between items-center">
-          <button onClick={toggleSidebar} className="text-white text-2xl">
+        {/* Toggle Button */}
+        <div className="d-flex justify-content-between">
+          <button onClick={toggleSidebar} className="btn btn-link text-white p-0 fs-4">
             <FaBars />
           </button>
         </div>
 
         {/* Profile Section */}
-        <div className="flex flex-col items-center my-5">
+        <div className="text-center my-4">
           <label htmlFor="profileImageUpload" className="cursor-pointer">
             <img
               src={imagePreview}
               alt="Profile"
-              className="rounded-full w-16 h-16 border-2 border-white"
+              className="rounded-circle border border-white"
+              style={{ width: "64px", height: "64px", objectFit: "cover" }}
             />
           </label>
           <input
             type="file"
             id="profileImageUpload"
             accept="image/*"
-            className="hidden"
+            className="d-none"
             onChange={handleImageUpload}
           />
-          <h2 className="text-lg mt-2 font-semibold">
-            {profile.name || "User Name"}
-          </h2>
-          <p className="text-sm opacity-80">{profile.email || "Email"}</p>
+          <h5 className="mt-2">{profile.name || "User Name"}</h5>
+          <p className="small">{profile.email || "Email"}</p>
           <button
-            className="mt-2 px-4 py-1 bg-white text-red-500 rounded-full text-sm flex items-center"
+            className="btn btn-light text-danger btn-sm"
             onClick={() => setIsEditing(!isEditing)}
           >
-            <FaEdit className="mr-1" /> {isEditing ? "Save" : "Edit Profile"}
+            <FaEdit className="me-1" />
+            {isEditing ? "Save" : "Edit Profile"}
           </button>
         </div>
 
-        {/* Sidebar Menu */}
-        <ul className="mt-5 space-y-3">
-          <li className="flex items-center space-x-3 cursor-pointer hover:opacity-80">
-            <FaShoppingBag />
-            {isOpen && <span>Orders</span>}
+        {/* Menu Items */}
+        <ul className="list-unstyled mt-4">
+          <li className="mb-3 d-flex align-items-center">
+            <FaShoppingBag className="me-2" /> {isOpen && "Orders"}
           </li>
-          <li className="flex items-center space-x-3 cursor-pointer hover:opacity-80">
-            <FaStar />
-            {isOpen && <span>Reviews</span>}
+          <li className="mb-3 d-flex align-items-center">
+            <FaStar className="me-2" /> {isOpen && "Reviews"}
           </li>
-          <li className="flex items-center space-x-3 cursor-pointer hover:opacity-80">
-            <FaMapMarkerAlt />
-            {isOpen && <span>Address</span>}
+          <li className="mb-3 d-flex align-items-center">
+            <FaMapMarkerAlt className="me-2" /> {isOpen && "Address"}
           </li>
-          <li className="flex items-center space-x-3 cursor-pointer hover:opacity-80">
-            <FaKey />
-            {isOpen && <span>Change Password</span>}
+          <li className="mb-3 d-flex align-items-center">
+            <FaKey className="me-2" /> {isOpen && "Change Password"}
           </li>
-          <li className="flex items-center space-x-3 cursor-pointer hover:opacity-80">
-            <FaInfoCircle />
-            {isOpen && <span>About Us</span>}
+          <li className="mb-3 d-flex align-items-center">
+            <FaInfoCircle className="me-2" /> {isOpen && "About Us"}
           </li>
-          <li className="flex items-center space-x-3 cursor-pointer hover:opacity-80">
-            <FaEnvelope />
-            {isOpen && <span>Contact Us</span>}
+          <li className="mb-3 d-flex align-items-center">
+            <FaEnvelope className="me-2" /> {isOpen && "Contact Us"}
           </li>
-          <li className="flex items-center space-x-3 cursor-pointer hover:opacity-80">
-            <FaLanguage />
-            {isOpen && <span>Languages</span>}
+          <li className="mb-3 d-flex align-items-center">
+            <FaLanguage className="me-2" /> {isOpen && "Languages"}
           </li>
         </ul>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-5">
-        <h1 className="text-xl font-semibold">Welcome to Your Profile</h1>
+      <div className="flex-grow-1 p-4">
+        <h2>Welcome to Your Profile</h2>
 
         {isEditing && (
           <div className="mt-4">
             <div className="mb-3">
-              <label className="block text-sm font-medium">Name</label>
+              <label className="form-label">Name</label>
               <input
                 type="text"
                 name="name"
-                className="w-full p-2 border rounded"
+                className="form-control"
                 value={profile.name}
                 onChange={handleChange}
               />
             </div>
 
             <div className="mb-3">
-              <label className="block text-sm font-medium">Email</label>
+              <label className="form-label">Email</label>
               <input
                 type="email"
                 name="email"
-                className="w-full p-2 border rounded"
+                className="form-control"
                 value={profile.email}
                 onChange={handleChange}
                 disabled
@@ -179,29 +173,29 @@ const SidebarProfile = () => {
             </div>
 
             <div className="mb-3">
-              <label className="block text-sm font-medium">Birthday</label>
+              <label className="form-label">Birthday</label>
               <input
                 type="date"
                 name="birthday"
-                className="w-full p-2 border rounded"
+                className="form-control"
                 value={profile.birthday}
                 onChange={handleChange}
               />
             </div>
 
             <div className="mb-3">
-              <label className="block text-sm font-medium">Phone</label>
+              <label className="form-label">Phone</label>
               <input
                 type="tel"
                 name="phone"
-                className="w-full p-2 border rounded"
+                className="form-control"
                 value={profile.phone}
                 onChange={handleChange}
               />
             </div>
 
             <button
-              className="bg-green-500 text-white px-4 py-2 rounded"
+              className="btn btn-success"
               onClick={() => setIsEditing(false)}
             >
               Save Changes

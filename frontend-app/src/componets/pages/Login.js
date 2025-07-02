@@ -5,7 +5,6 @@ const Login = () => {
   const [formdata, setFormdata] = useState({
     email: "",
     password: "",
-    role: "",
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -26,14 +25,18 @@ const Login = () => {
       const response = await fetch("http://localhost:7000/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formdata),
+        body: JSON.stringify({
+          email: formdata.email,
+          password: formdata.password,
+        }),
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Login failed");
+
+      if (!response.ok) throw new Error(data.error || "Login failed");
       if (!data.token) throw new Error("Token not provided in response");
 
-      const role = data.userType || formdata.role;
+      const role = data.user?.role || "customer";
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("usertype", role);
@@ -123,22 +126,6 @@ const Login = () => {
                           onChange={handleChange}
                           required
                         />
-                      </div>
-
-                      <div className="mb-4">
-                        <label className="form-label fw-medium">I am a</label>
-                        <select
-                          name="role"
-                          value={formdata.role}
-                          onChange={handleChange}
-                          className="form-control form-control-lg rounded-3 border-1"
-                          style={{ backgroundColor: "#F9F9F9" }}
-                          required
-                        >
-                          <option value="">Select your role</option>
-                          <option value="customer">Customer</option>
-                          <option value="admin">Restaurant Owner</option>
-                        </select>
                       </div>
 
                       <div className="form-check mb-4">
