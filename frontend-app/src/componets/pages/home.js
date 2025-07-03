@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Footer from "../footer";
-import Navbar from "../Navbar";
+
 import { menuAPI } from "../../utils/api";
 // Import multiple images
 import foodDeliveryImg1 from "../../assets/homepage.jpg";
@@ -21,6 +21,7 @@ const Home = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [cartMessage, setCartMessage] = useState("");
 
   useEffect(() => {
     setIsVisible(true);
@@ -69,16 +70,29 @@ const Home = () => {
   );
 
   const handleAddToCart = (item) => {
-    // TODO: Implement cart functionality
-    console.log('Adding to cart:', item);
-    // You can navigate to cart page or show a toast notification
-    alert(`${item.name} added to cart!`);
+    const cartItems = JSON.parse(localStorage.getItem('cartItems')) || [];
+
+    const existingItemIndex = cartItems.findIndex(cartItem => cartItem._id === item._id);
+
+    if (existingItemIndex !== -1) {
+      cartItems[existingItemIndex].quantity = (cartItems[existingItemIndex].quantity || 1) + 1;
+    } else {
+      cartItems.push({ ...item, quantity: 1 });
+    } localStorage.setItem('cartItems', JSON.stringify(cartItems));
+
+    setCartMessage(`${item.name} added to cart!`);
+    setTimeout(() => setCartMessage(""), 1500);
   };
 
   return (
     <div className="container-fluid p-0">
       {/* Navbar */}
-      <Navbar />
+      {/* Show cart message */}
+      {cartMessage && (
+        <div className="alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3" style={{ zIndex: 9999, minWidth: 200 }}>
+          {cartMessage}
+        </div>
+      )}
 
       {/* Hero Section with Enhanced Background */}
       <div className="position-relative overflow-hidden" style={{

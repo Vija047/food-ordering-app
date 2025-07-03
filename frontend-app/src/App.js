@@ -1,6 +1,6 @@
 import { BrowserRouter as Router } from "react-router-dom";
 import { useState, useEffect } from "react";
-
+import  Navbar  from "./componets/Navbar";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Loader from "./componets/loader";
 import AppRoutes from "./AppRoutes";
@@ -19,7 +19,7 @@ function App() {
     <Router>
       <div className="App">
        
-       
+       <Navbar />
         {/* <div className="container"> */}
         {loading ? (
           <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>

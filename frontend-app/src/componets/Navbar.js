@@ -9,6 +9,7 @@ function Navbar() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")) || null);
   const [loading, setLoading] = useState(!user);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [cartItemsCount, setCartItemsCount] = useState(0);
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
@@ -34,7 +35,7 @@ function Navbar() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, user]);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
@@ -46,6 +47,21 @@ function Navbar() {
     const updateUser = () => setUser(JSON.parse(localStorage.getItem("user")) || null);
     window.addEventListener("storage", updateUser);
     return () => window.removeEventListener("storage", updateUser);
+  }, []);
+
+  // Update cart items count when localStorage changes
+  useEffect(() => {
+    const updateCartCount = () => {
+      const cartItems = JSON.parse(localStorage.getItem("cartItems")) || [];
+      setCartItemsCount(cartItems.length);
+    };
+
+    // Initial count
+    updateCartCount();
+
+    // Listen for changes in localStorage
+    window.addEventListener("storage", updateCartCount);
+    return () => window.removeEventListener("storage", updateCartCount);
   }, []);
 
   const handleLogout = () => {
@@ -116,9 +132,11 @@ function Navbar() {
               style={{ backgroundColor: "#FFF8E1", borderRadius: "12px" }}
             >
               <img src={Cart} alt="Cart" width={24} height={24} />
-              <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
-                1<span className="visually-hidden">items in cart</span>
-              </span>
+              {cartItemsCount > 0 && (
+                <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
+                  {cartItemsCount}<span className="visually-hidden">items in cart</span>
+                </span>
+              )}
             </button>
 
             <button
