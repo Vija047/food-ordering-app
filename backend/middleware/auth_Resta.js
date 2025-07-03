@@ -20,8 +20,8 @@ const authenticate = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, secretKey);
-  
-   
+
+
 
     // Fix: Use 'id' instead of 'userId' as per your JWT payload
     const userId = decoded.userId || decoded.id;
@@ -44,8 +44,8 @@ const authenticate = async (req, res, next) => {
     const requestedRole = req.path.includes("restaurant")
       ? "restaurant-owner"
       : req.path.includes("customer")
-      ? "customer"
-      : null;
+        ? "customer"
+        : null;
 
     if (
       requestedRole &&
@@ -71,6 +71,24 @@ const authorizeAdmin = (req, res, next) => {
     return res
       .status(403)
       .json({ message: "Unauthorized: Admin access required" });
+  }
+  next();
+};
+
+const authorizeRestaurantOwner = (req, res, next) => {
+  if (!req.user || req.user.role !== "restaurant_owner") {
+    return res
+      .status(403)
+      .json({ message: "Unauthorized: Restaurant owner access required" });
+  }
+  next();
+};
+
+const authorizeAdminOrRestaurantOwner = (req, res, next) => {
+  if (!req.user || (req.user.role !== "admin" && req.user.role !== "restaurant_owner")) {
+    return res
+      .status(403)
+      .json({ message: "Unauthorized: Admin or Restaurant owner access required" });
   }
   next();
 };
@@ -113,6 +131,8 @@ const authorizeRole = (allowedRoles) => {
 module.exports = {
   authenticate,
   authorizeAdmin,
+  authorizeRestaurantOwner,
+  authorizeAdminOrRestaurantOwner,
   protect,
   authorizeRole,
 };

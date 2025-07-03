@@ -195,5 +195,37 @@ const updateOrderStatus = async (req, res) => {
     }
 };
 
+// Get user order history by email or phone
+const getUserOrderHistory = async (req, res) => {
+    try {
+        const { email, phone } = req.query;
+
+        if (!email && !phone) {
+            return res.status(400).json({ message: 'Email or phone number is required' });
+        }
+
+        const filter = {};
+        if (email) filter.customerEmail = email;
+        if (phone) filter.customerPhone = phone;
+
+        // Use $or to find orders with either email or phone
+        const orConditions = [];
+        if (email) orConditions.push({ customerEmail: email });
+        if (phone) orConditions.push({ customerPhone: phone });
+
+        const orders = await Order.find({ $or: orConditions })
+            .sort({ createdAt: -1 })
+            .limit(20); // Limit to last 20 orders
+
+        return res.status(200).json({
+            orders,
+            total: orders.length
+        });
+    } catch (error) {
+        console.error('Error fetching user order history:', error);
+        return res.status(500).json({ message: 'Error fetching order history', error: error.message });
+    }
+};
+
 // Correctly exporting functions
-module.exports = { placeOrder, getOrderDetails, getAllOrders, updateOrderStatus };
+module.exports = { placeOrder, getOrderDetails, getAllOrders, updateOrderStatus, getUserOrderHistory };

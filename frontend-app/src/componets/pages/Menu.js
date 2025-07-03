@@ -3,7 +3,7 @@ import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { FaShoppingCart, FaPlus, FaTrashAlt, FaStore, FaUtensils } from "react-icons/fa";
 import { BiSolidOffer } from "react-icons/bi";
-import { getAuthToken, isAuthenticated } from "../../utils/auth";
+import { isAuthenticated } from "../../utils/auth";
 import { useNavigate } from "react-router-dom";
 
 const OrderWithCart = () => {
@@ -18,6 +18,10 @@ const OrderWithCart = () => {
     const [cartVisible, setCartVisible] = useState(false);
     const [error, setError] = useState(null);
     const [orderSuccess, setOrderSuccess] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState("all");
+    const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+    const [toastMessage, setToastMessage] = useState("");
+    const [showToast, setShowToast] = useState(false);
     const navigate = useNavigate();
 
     // Define the API base URL
@@ -30,6 +34,21 @@ const OrderWithCart = () => {
             try {
                 const response = await axios.get(`${API_URL}/api/restaurants`);
                 setRestaurants(response.data);
+
+                // Load cart from localStorage after restaurants are loaded
+                const savedCart = localStorage.getItem('currentCart');
+                if (savedCart) {
+                    try {
+                        const parsedCart = JSON.parse(savedCart);
+                        if (Array.isArray(parsedCart) && parsedCart.length > 0) {
+                            setCart(parsedCart);
+                            setCartVisible(true);
+                        }
+                    } catch (error) {
+                        console.error("Error parsing saved cart:", error);
+                        localStorage.removeItem('currentCart');
+                    }
+                }
             } catch (error) {
                 console.error("Error fetching restaurants:", error);
                 setError("Failed to load restaurants. Please try again later.");
@@ -147,10 +166,22 @@ const OrderWithCart = () => {
     };
 
     const handleAddToCart = (item) => {
+        // Clear any previous errors
+        setError(null);
+
         // Check if the user is trying to mix items from different restaurants
         if (cart.length > 0 && selectedRestaurant) {
             const firstItemRestaurant = cart[0].restaurant;
             if (item.restaurant && item.restaurant !== firstItemRestaurant) {
+                setError("Cannot add items from different restaurants to the same cart. Please clear your cart first.");
+                return;
+            }
+        }
+
+        // For items from "All Restaurant Menu Items" view, ensure consistency
+        if (!selectedRestaurant && cart.length > 0) {
+            const firstItemRestaurant = cart[0].restaurant;
+            if (item.restaurant !== firstItemRestaurant) {
                 setError("Cannot add items from different restaurants to the same cart. Please clear your cart first.");
                 return;
             }
@@ -174,11 +205,31 @@ const OrderWithCart = () => {
 
         // Show cart when adding items
         setCartVisible(true);
+
+        // Save cart to localStorage for persistence
+        const updatedCart = cart.some(cartItem => cartItem._id === item._id)
+            ? cart.map(cartItem =>
+                cartItem._id === item._id
+                    ? { ...cartItem, quantity: cartItem.quantity + 1 }
+                    : cartItem
+            )
+            : [...cart, { ...item, quantity: 1 }];
+
+        localStorage.setItem('currentCart', JSON.stringify(updatedCart));
+        showToastMessage(`${item.name} added to cart!`);
     };
 
     const handleRemoveFromCart = (itemId) => {
         const updatedCart = cart.filter(item => item._id !== itemId);
         setCart(updatedCart);
+
+        // Update localStorage
+        localStorage.setItem('currentCart', JSON.stringify(updatedCart));
+
+        // If cart becomes empty, hide it
+        if (updatedCart.length === 0) {
+            setCartVisible(false);
+        }
     };
 
     const handleUpdateQuantity = (itemId, newQuantity) => {
@@ -188,6 +239,9 @@ const OrderWithCart = () => {
             item._id === itemId ? { ...item, quantity: newQuantity } : item
         );
         setCart(updatedCart);
+
+        // Update localStorage
+        localStorage.setItem('currentCart', JSON.stringify(updatedCart));
     };
 
     const handlePaymentChange = (event) => {
@@ -203,7 +257,16 @@ const OrderWithCart = () => {
     };
 
     const handlePlaceOrder = async () => {
-        if (!selectedRestaurant && cart.some(item => !item.restaurant)) {
+        // Determine the restaurant for the order
+        let orderRestaurant = selectedRestaurant;
+
+        if (!orderRestaurant && cart.length > 0) {
+            // If no restaurant is selected but cart has items, find the restaurant from cart items
+            const firstItemRestaurantId = cart[0].restaurant;
+            orderRestaurant = restaurants.find(r => r._id === firstItemRestaurantId);
+        }
+
+        if (!orderRestaurant) {
             setError("Please select a restaurant before placing an order!");
             return;
         }
@@ -213,39 +276,65 @@ const OrderWithCart = () => {
             return;
         }
 
-        // Check if user is authenticated
-        if (!isAuthenticated()) {
-            // Save current cart to localStorage for after login
-            localStorage.setItem('pendingCart', JSON.stringify({
-                items: cart,
-                restaurantId: selectedRestaurant._id
-            }));
-            // Redirect to login page
-            navigate("/login?redirect=menu");
+        // Get delivery address
+        const address = prompt("Please enter your delivery address:", "123 Main Street, City, State");
+        if (!address || address.trim() === "") {
+            setError("Delivery address is required!");
             return;
         }
 
-        setIsLoading(true);
+        // Get customer details if not authenticated
+        let customerEmail = "";
+        let customerPhone = "";
+
+        if (!isAuthenticated()) {
+            customerEmail = prompt("Please enter your email address:");
+            customerPhone = prompt("Please enter your phone number:");
+
+            if (!customerEmail || !customerPhone) {
+                setError("Email and phone number are required for order placement!");
+                return;
+            }
+        }
+
+        setIsPlacingOrder(true);
         setError(null);
 
         try {
+            const subtotal = calculateTotal();
+            const deliveryFee = 40;
+            const packagingFee = 20;
+            const tax = Math.round(subtotal * 0.05);
+            const total = subtotal + deliveryFee + packagingFee + tax;
+
             const orderData = {
-                restaurantId: selectedRestaurant._id,
                 items: cart.map(item => ({
-                    menuItem: item._id,
+                    _id: item._id,
+                    name: item.name,
+                    price: item.price,
                     quantity: item.quantity || 1,
-                    price: item.price
+                    restaurant: item.restaurant || orderRestaurant._id,
+                    restaurantName: item.restaurantName || orderRestaurant.name,
+                    category: item.category || 'Main Course',
+                    description: item.description || ''
                 })),
-                totalAmount: calculateTotal() + 40 + Math.round(calculateTotal() * 0.05),
-                paymentMethod,
-                deliveryFee: 40,
-                tax: Math.round(calculateTotal() * 0.05)
+                subtotal,
+                discount: 0,
+                tax,
+                deliveryFee,
+                packagingFee,
+                total,
+                address: address.trim(),
+                appliedCoupon: null,
+                customerEmail: customerEmail || null,
+                customerPhone: customerPhone || null,
+                paymentMethod
             };
 
-            const token = getAuthToken();
-
-            const response = await axios.post(`${API_URL}/api/order`, orderData, {
-                headers: { Authorization: `Bearer ${token}` }
+            const response = await axios.post(`${API_URL}/api/orders`, orderData, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             });
 
             console.log("Order placed:", response.data);
@@ -253,44 +342,71 @@ const OrderWithCart = () => {
             setCart([]); // Clear the cart after placing the order
             setCartVisible(false);
 
-            // Show success message
-            alert(`Order placed successfully from ${selectedRestaurant.name}!`);
+            // Clear cart from localStorage
+            localStorage.removeItem('currentCart');
 
-            // Optionally redirect to orders page
-            // navigate("/orders");
+            // Show success message
+            showToastMessage(`Order placed successfully! Order ID: ${response.data.orderId}`);
+
+            // Optionally redirect to orders page after a delay
+            setTimeout(() => {
+                navigate("/orders");
+            }, 3000);
         } catch (error) {
             console.error("Error placing order:", error);
             setError(error.response?.data?.message || "Failed to place order. Please try again.");
         } finally {
-            setIsLoading(false);
+            setIsPlacingOrder(false);
         }
     };
 
-    // Filter menu items when search term changes
+    // Filter menu items when search term or category changes
     useEffect(() => {
         if (menuItems.length > 0) {
-            if (!searchTerm) {
-                setFilteredMenuItems(menuItems);
-            } else {
-                const filtered = menuItems.filter(item =>
+            let filtered = menuItems;
+
+            // Apply search filter
+            if (searchTerm) {
+                filtered = filtered.filter(item =>
                     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
                 );
-                setFilteredMenuItems(filtered);
             }
+
+            // Apply category filter
+            if (selectedCategory !== "all") {
+                if (selectedCategory === "popular") {
+                    // Filter popular items (you can customize this logic)
+                    filtered = filtered.filter(item => item.price > 200); // Example: expensive items as popular
+                } else if (selectedCategory === "recommended") {
+                    // Filter recommended items (you can customize this logic)
+                    filtered = filtered.filter(item => item.name.toLowerCase().includes('biryani') ||
+                        item.name.toLowerCase().includes('pizza') ||
+                        item.name.toLowerCase().includes('burger'));
+                }
+            }
+
+            setFilteredMenuItems(filtered);
         } else {
             setFilteredMenuItems([]);
         }
-    }, [searchTerm, menuItems]);
+    }, [searchTerm, menuItems, selectedCategory]);
 
     // Handle search term change
     const handleSearchChange = (e) => {
         setSearchTerm(e.target.value);
     };
 
+    const handleSearchKeyPress = (e) => {
+        if (e.key === 'Escape') {
+            setSearchTerm("");
+        }
+    };
+
     const refreshMenu = async () => {
         if (!selectedRestaurant) {
-            setError("Please select a restaurant first!");
+            // If no restaurant is selected, refresh all menu items
+            await fetchAllMenuItems();
             return;
         }
 
@@ -364,9 +480,45 @@ const OrderWithCart = () => {
         navigate("/home");
     }
 
+    const handleClearCart = () => {
+        setCart([]);
+        setCartVisible(false);
+        localStorage.removeItem('currentCart');
+        setError(null);
+    };
+
+    const handleCategoryChange = (category) => {
+        setSelectedCategory(category);
+    };
+
+    const showToastMessage = (message) => {
+        setToastMessage(message);
+        setShowToast(true);
+        setTimeout(() => {
+            setShowToast(false);
+        }, 3000);
+    };
+
     return (
         <div style={{ backgroundColor: "#FFF9F4", minHeight: "100vh", fontFamily: "'Poppins', sans-serif" }}>
-            <button onClick={handleback}  className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200 shadow-sm">Back</button>
+            <button onClick={handleback} className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200 shadow-sm">Back</button>
+
+            {/* Toast Notification */}
+            {showToast && (
+                <div
+                    className="position-fixed top-0 start-50 translate-middle-x mt-3 alert alert-success alert-dismissible fade show"
+                    style={{ zIndex: 1055, minWidth: "300px" }}
+                    role="alert"
+                >
+                    {toastMessage}
+                    <button
+                        type="button"
+                        className="btn-close"
+                        onClick={() => setShowToast(false)}
+                        aria-label="Close"
+                    ></button>
+                </div>
+            )}
 
             <div className="container my-4">
                 {/* Display error message if any */}
@@ -469,22 +621,53 @@ const OrderWithCart = () => {
                                     <div className="d-flex flex-wrap justify-content-between align-items-center mb-4">
                                         <ul className="nav nav-pills mb-2 mb-md-0">
                                             <li className="nav-item">
-                                                <a className="nav-link active rounded-pill" href="#all">All Items</a>
+                                                <button
+                                                    className={`nav-link rounded-pill ${selectedCategory === 'all' ? 'active' : ''}`}
+                                                    onClick={() => handleCategoryChange('all')}
+                                                    style={{
+                                                        backgroundColor: selectedCategory === 'all' ? '#FFA500' : 'transparent',
+                                                        color: selectedCategory === 'all' ? 'white' : '#6c757d',
+                                                        border: 'none'
+                                                    }}
+                                                >
+                                                    All Items
+                                                </button>
                                             </li>
                                             <li className="nav-item">
-                                                <a className="nav-link rounded-pill" href="#popular">Popular</a>
+                                                <button
+                                                    className={`nav-link rounded-pill ${selectedCategory === 'popular' ? 'active' : ''}`}
+                                                    onClick={() => handleCategoryChange('popular')}
+                                                    style={{
+                                                        backgroundColor: selectedCategory === 'popular' ? '#FFA500' : 'transparent',
+                                                        color: selectedCategory === 'popular' ? 'white' : '#6c757d',
+                                                        border: 'none'
+                                                    }}
+                                                >
+                                                    Popular
+                                                </button>
                                             </li>
                                             <li className="nav-item">
-                                                <a className="nav-link rounded-pill" href="#recommended">Recommended</a>
+                                                <button
+                                                    className={`nav-link rounded-pill ${selectedCategory === 'recommended' ? 'active' : ''}`}
+                                                    onClick={() => handleCategoryChange('recommended')}
+                                                    style={{
+                                                        backgroundColor: selectedCategory === 'recommended' ? '#FFA500' : 'transparent',
+                                                        color: selectedCategory === 'recommended' ? 'white' : '#6c757d',
+                                                        border: 'none'
+                                                    }}
+                                                >
+                                                    Recommended
+                                                </button>
                                             </li>
                                         </ul>
                                         <div className="position-relative">
                                             <input
                                                 type="text"
                                                 className="form-control rounded-pill"
-                                                placeholder="Search menu..."
+                                                placeholder="Search menu... (Press Esc to clear)"
                                                 value={searchTerm}
                                                 onChange={handleSearchChange}
+                                                onKeyDown={handleSearchKeyPress}
                                                 style={{ width: "220px" }}
                                             />
                                             {searchTerm && (
@@ -574,6 +757,31 @@ const OrderWithCart = () => {
                         )}
                     </div>
 
+                    {/* Floating Cart Button (when cart is not visible but has items) */}
+                    {!cartVisible && cart.length > 0 && (
+                        <div className="position-fixed bottom-0 end-0 p-3" style={{ zIndex: 1050 }}>
+                            <button
+                                className="btn btn-lg rounded-circle shadow-lg"
+                                style={{
+                                    backgroundColor: "#FFA500",
+                                    color: "white",
+                                    width: "60px",
+                                    height: "60px",
+                                    position: "relative"
+                                }}
+                                onClick={toggleCart}
+                            >
+                                <FaShoppingCart size={20} />
+                                <span
+                                    className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                                    style={{ fontSize: "0.7rem" }}
+                                >
+                                    {cart.reduce((total, item) => total + (item.quantity || 1), 0)}
+                                </span>
+                            </button>
+                        </div>
+                    )}
+
                     {/* Cart Section (Sliding) */}
                     {cartVisible && (
                         <div className="col-lg-4">
@@ -583,11 +791,22 @@ const OrderWithCart = () => {
                                         <h4 className="fw-bold mb-0" style={{ color: "#FFA500" }}>
                                             <FaShoppingCart className="me-2" /> Your Cart
                                         </h4>
-                                        <span
-                                            className="btn-close"
-                                            onClick={toggleCart}
-                                            style={{ cursor: "pointer" }}
-                                        ></span>
+                                        <div className="d-flex align-items-center">
+                                            {cart.length > 0 && (
+                                                <button
+                                                    className="btn btn-sm btn-outline-danger me-2"
+                                                    onClick={handleClearCart}
+                                                    title="Clear Cart"
+                                                >
+                                                    Clear
+                                                </button>
+                                            )}
+                                            <span
+                                                className="btn-close"
+                                                onClick={toggleCart}
+                                                style={{ cursor: "pointer" }}
+                                            ></span>
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="card-body p-3">
@@ -605,11 +824,16 @@ const OrderWithCart = () => {
                                                 {cart.map((item, index) => (
                                                     <div key={index} className="card mb-2 border-0 bg-light rounded-3">
                                                         <div className="card-body py-2 px-3">
-                                                            <div className="d-flex justify-content-between align-items-center">
-                                                                <div>
-                                                                    <h6 className="mb-0 fw-medium">{item.name}</h6>
-                                                                    <p className="text-muted small mb-0">₹{item.price} each</p>
-                                                                </div>
+                                                            <div className="d-flex justify-content-between align-items-center">                                                    <div>
+                                                                <h6 className="mb-0 fw-medium">{item.name}</h6>
+                                                                <p className="text-muted small mb-0">₹{item.price} each</p>
+                                                                {item.restaurantName && (
+                                                                    <p className="text-muted small mb-0">
+                                                                        <FaStore size={10} className="me-1" />
+                                                                        {item.restaurantName}
+                                                                    </p>
+                                                                )}
+                                                            </div>
                                                                 <div className="d-flex align-items-center">
                                                                     <div className="input-group input-group-sm quantity-control">
                                                                         <button
@@ -683,9 +907,9 @@ const OrderWithCart = () => {
                                                 className="btn btn-lg w-100 rounded-pill py-2 fw-medium"
                                                 style={{ backgroundColor: "#FFA500", color: "white" }}
                                                 onClick={handlePlaceOrder}
-                                                disabled={isLoading}
+                                                disabled={isPlacingOrder || cart.length === 0}
                                             >
-                                                {isLoading ? (
+                                                {isPlacingOrder ? (
                                                     <>
                                                         <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                                                         Processing...

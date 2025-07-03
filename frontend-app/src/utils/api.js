@@ -113,8 +113,14 @@ export const userAPI = {
 
 // Orders API
 export const ordersAPI = {
-    // Create order
-    createOrder: (orderData, token) => apiRequest('/orders', {
+    // Create order (public - no auth required)
+    createOrder: (orderData) => apiRequest('/orders', {
+        method: 'POST',
+        body: JSON.stringify(orderData),
+    }),
+
+    // Create order with auth (for logged in users)
+    createOrderAuth: (orderData, token) => apiRequest('/orders', {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -122,7 +128,18 @@ export const ordersAPI = {
         body: JSON.stringify(orderData),
     }),
 
-    // Get user orders
+    // Get order by ID (for tracking)
+    getOrderById: (orderId) => apiRequest(`/orders/${orderId}`),
+
+    // Get user order history by email/phone
+    getUserOrderHistory: (email, phone) => {
+        const params = new URLSearchParams();
+        if (email) params.append('email', email);
+        if (phone) params.append('phone', phone);
+        return apiRequest(`/orders/user/history?${params.toString()}`);
+    },
+
+    // Get user orders (authenticated)
     getUserOrders: (token) => apiRequest('/orders', {
         headers: {
             'Authorization': `Bearer ${token}`,

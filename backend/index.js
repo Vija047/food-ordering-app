@@ -17,6 +17,12 @@ const orderRoutes = require('./Routes/orderRoutes');
 // Middleware to parse JSON
 app.use(express.json());
 
+// Add request logging middleware for debugging
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`, req.body);
+  next();
+});
+
 // CORS middleware for handling cross-origin requests
 app.use(cors({
   origin: "http://localhost:3000", // Replace with your frontend URL

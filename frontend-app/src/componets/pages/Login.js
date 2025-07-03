@@ -46,6 +46,8 @@ const Login = () => {
       setTimeout(() => {
         if (role === "admin") {
           navigate("/restaurant");
+        } else if (role === "restaurant_owner") {
+          navigate("/restaurant-owner");
         } else if (role === "customer") {
           navigate("/home");
         } else {
@@ -183,7 +185,7 @@ const Login = () => {
             </div>
           </div>
         </div>
-      </div> 
+      </div>
     </div>
   );
 };

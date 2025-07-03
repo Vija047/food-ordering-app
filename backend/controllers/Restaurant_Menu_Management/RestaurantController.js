@@ -1,10 +1,10 @@
 const Restaurant = require('../../Models/Restaurants');
 const MenuItem = require('../../Models/MenuItems');
 
-// Add a new restaurant (Admin only)
+// Add a new restaurant (Admin or Restaurant Owner)
 const addRestaurant = async (req, res) => {
     try {
-        const { name, location } = req.body;
+        const { name, location, cuisine, phone, description, ownerEmail, ownerId } = req.body;
 
         // Check if restaurant already exists
         const existingRestaurant = await Restaurant.findOne({ name });
@@ -12,7 +12,15 @@ const addRestaurant = async (req, res) => {
             return res.status(400).json({ message: 'Restaurant already exists' });
         }
 
-        const newRestaurant = new Restaurant({ name, location });
+        const newRestaurant = new Restaurant({
+            name,
+            location,
+            cuisine,
+            ownerEmail: ownerEmail || req.user?.email,
+            ownerPhone: phone,
+            description,
+            ownerId: ownerId || req.user?.id
+        });
         await newRestaurant.save();
 
         return res.status(201).json({ message: 'Restaurant added successfully', restaurant: newRestaurant });

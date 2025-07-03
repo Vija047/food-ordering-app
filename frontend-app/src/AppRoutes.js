@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import Register from "./componets/pages/Register";
 import Login from "./componets/pages/Login";
 import Restaurant from "./componets/admin/Restaurant";
+import RestaurantOwnerDashboard from "./componets/pages/RestaurantOwnerDashboard";
 import Order from "./componets/pages/Orders";
 import Menu from "./componets/pages/Menu";
 import Profile from "./componets/pages/profile";
@@ -22,8 +23,10 @@ function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/home" element={<Home />} />
         <Route path="/restaurant" element={<Restaurant />} />
+        <Route path="/restaurant-owner" element={<RestaurantOwnerDashboard />} />
         <Route path="/Register" element={<Register />} />
         <Route path="/order" element={<Order />} />
+        <Route path="/orders" element={<Order />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/menu" element={<Menu />} />

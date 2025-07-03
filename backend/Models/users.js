@@ -16,13 +16,13 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['customer', 'admin'],
-        default: 'customer', // Fixed: Changed 'user' to 'customer' to match enum
+        enum: ['customer', 'admin', 'restaurant_owner'], 
+        default: 'customer', 
     },
     profile: {
-        type: Object, // You can change this to a more specific schema if needed
+        type: Object, 
         default: {},
     }
-}, { timestamps: true }); // ✅ Fixed: timestamps should be outside the field definitions
+}, { timestamps: true }); 
 
 module.exports = mongoose.model('User', userSchema);

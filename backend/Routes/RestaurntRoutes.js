@@ -17,19 +17,20 @@ const { updateAdminProfile } = require('../controllers/User_controller/Users_Reg
 
 const {
   authenticate,
-  authorizeAdmin
+  authorizeAdmin,
+  authorizeAdminOrRestaurantOwner
 } = require('../middleware/auth_Resta');
 
 const router = express.Router();
 
 // Restaurant Routes
-router.post('/admin', authenticate, authorizeAdmin, addRestaurant);
+router.post('/admin', authenticate, authorizeAdminOrRestaurantOwner, addRestaurant);
 router.get('/restaurants', getRestaurants);
 router.get('/admin/restaurants', authenticate, authorizeAdmin, getRestaurantsForAdmin);
 router.get('/admin/dashboard/stats', authenticate, authorizeAdmin, getAdminDashboardStats);
 
 // Menu Routes
-router.post('/:id/menu', authenticate, authorizeAdmin, addMenuItemController);
+router.post('/:id/menu', authenticate, authorizeAdminOrRestaurantOwner, addMenuItemController);
 router.put('/menu/:menuItemId', authenticate, authorizeAdmin, updateMenuItem);
 router.delete('/menu/:menuItemId', authenticate, authorizeAdmin, deleteMenuItem);
 router.get('/getmenu/:id', getMenuItems);
@@ -37,5 +38,21 @@ router.get('/allmenu', getAllMenuItems);
 
 // Admin Profile Routes
 router.put('/admin/profile', authenticate, authorizeAdmin, updateAdminProfile);
+
+// Restaurant Owner routes
+const {
+  getRestaurantOrders,
+  updateOrderStatus,
+  getRestaurantDashboard,
+  getRestaurantDetails,
+  getRestaurantsByOwner
+} = require('../controllers/Restaurant_Menu_Management/resturant_owener');
+
+// Restaurant owner dashboard routes
+router.get('/restaurant/:restaurantId/dashboard', getRestaurantDashboard);
+router.get('/restaurant/:restaurantId/orders', getRestaurantOrders);
+router.put('/restaurant/order/:orderId/status', updateOrderStatus);
+router.get('/restaurant/:restaurantId/details', getRestaurantDetails);
+router.get('/restaurants/owner/:ownerEmail', getRestaurantsByOwner);
 
 module.exports = router;

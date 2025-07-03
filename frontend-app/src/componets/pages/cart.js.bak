@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Trash2, Plus, Minus, ShoppingBag, Tag, Truck, Clock, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { ordersAPI } from "../../utils/api";
 
 const ShoppingCart = () => {
     const navigate = useNavigate();
@@ -13,10 +14,9 @@ const ShoppingCart = () => {
     };
 
     useEffect(() => {
-        // Load cart items from localStorage - check both keys for compatibility
+        // Load cart items from localStorage
         try {
-            let savedCart = JSON.parse(localStorage.getItem('currentCart')) ||
-                JSON.parse(localStorage.getItem('cartItems')) || [];
+            const savedCart = JSON.parse(localStorage.getItem('cartItems')) || [];
             setCart(savedCart);
         } catch (error) {
             console.error('Error loading cart from localStorage:', error);
@@ -76,10 +76,9 @@ const ShoppingCart = () => {
             return item;
         });
         setCart(updatedCart);
-        // Update both localStorage keys for compatibility
+        // Update localStorage
         try {
             localStorage.setItem('cartItems', JSON.stringify(updatedCart));
-            localStorage.setItem('currentCart', JSON.stringify(updatedCart));
         } catch (error) {
             console.error('Error saving cart to localStorage:', error);
         }
@@ -89,10 +88,9 @@ const ShoppingCart = () => {
     const removeItem = (id) => {
         const updatedCart = cart.filter(item => getItemId(item) !== id);
         setCart(updatedCart);
-        // Update both localStorage keys for compatibility
+        // Update localStorage
         try {
             localStorage.setItem('cartItems', JSON.stringify(updatedCart));
-            localStorage.setItem('currentCart', JSON.stringify(updatedCart));
         } catch (error) {
             console.error('Error saving cart to localStorage:', error);
         }
@@ -105,7 +103,6 @@ const ShoppingCart = () => {
             setAppliedCoupon(null);
             try {
                 localStorage.removeItem('cartItems');
-                localStorage.removeItem('currentCart');
             } catch (error) {
                 console.error('Error clearing cart from localStorage:', error);
             }
@@ -202,18 +199,9 @@ const ShoppingCart = () => {
             const currentDeliveryFee = currentTempTotal > 1000 ? 0 : deliveryFee;
             const currentGrandTotal = currentTotalBeforeTax + currentTax + currentDeliveryFee + packagingFee;
 
-            // Prepare order details for the backend API
+            // Prepare order details
             const orderDetails = {
-                items: cart.map(item => ({
-                    _id: item._id || item.id,
-                    name: item.name,
-                    price: item.price,
-                    quantity: item.quantity || 1,
-                    restaurant: item.restaurant || item.restaurantId,
-                    restaurantName: item.restaurantName,
-                    category: item.category || 'Main Course',
-                    description: item.description || ''
-                })),
+                items: cart,
                 subtotal: currentSubtotal,
                 discount: currentDiscount,
                 tax: currentTax,
@@ -224,25 +212,11 @@ const ShoppingCart = () => {
                 appliedCoupon: appliedCoupon,
                 customerEmail: finalEmail,
                 customerPhone: finalPhone,
-                paymentMethod: paymentMethod
+                paymentMethod: paymentMethod // Include payment method
             };
 
-            // Use direct axios call instead of ordersAPI
-            const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:7000";
-            const response = await fetch(`${API_URL}/api/orders`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(orderDetails)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to place order');
-            }
-
-            const data = await response.json();
+            // Send order to backend using API utility
+            const data = await ordersAPI.createOrder(orderDetails);
             const orderId = data.orderId || data._id || 'N/A';
 
             // Save order to localStorage for order tracking
@@ -251,7 +225,8 @@ const ShoppingCart = () => {
                 orderId,
                 status: 'Pending',
                 createdAt: new Date().toISOString(),
-                estimatedDeliveryTime: data.estimatedDeliveryTime
+                estimatedDeliveryTime: data.estimatedDeliveryTime,
+                paymentMethod: paymentMethod
             };
             localStorage.setItem('pendingOrder', JSON.stringify(orderInfo));
 
@@ -266,13 +241,13 @@ const ShoppingCart = () => {
             // Clear cart after order
             setCart([]);
             localStorage.removeItem('cartItems');
-            localStorage.removeItem('currentCart');
 
             // Show detailed success message
             let successMessage = `🎉 Order placed successfully!\n\n`;
             successMessage += `📋 Order ID: ${orderId}\n`;
             successMessage += `📍 Delivery Address: ${deliveryAddress}\n`;
             successMessage += `💰 Total Amount: ₹${currentGrandTotal.toFixed(2)}\n`;
+            successMessage += `💳 Payment Method: ${paymentMethod}\n`;
             successMessage += `⏰ Estimated Delivery: ${data.estimatedDeliveryTime || '30-40 minutes'}\n\n`;
 
             if (finalEmail) {
@@ -289,7 +264,7 @@ const ShoppingCart = () => {
             navigate('/orders');
         } catch (error) {
             console.error('Checkout error:', error);
-            alert('Error processing your order: ' + (error.message || 'Please try again.'));
+            alert('Error processing your order. Please try again.');
         } finally {
             setIsCheckingOut(false);
         }
@@ -314,7 +289,7 @@ const ShoppingCart = () => {
     return (
         <>
             {/* Bootstrap CSS */}
-
+            
             <div className="min-vh-100" style={{ backgroundColor: '#fef7ed' }}>
                 <div className="container py-4">
                     <div className="row flex-column-reverse flex-lg-row">
@@ -605,19 +580,63 @@ const ShoppingCart = () => {
                                                 <h5 className="fw-bold">Grand Total</h5>
                                                 <h5 className="fw-bold" style={{ color: '#fbbf24' }}>₹{grandTotal.toFixed(2)}</h5>
                                             </div>
-                                            {/* Payment Method Selection */}
-                                            <div className="mb-3">
-                                                <h6 className="mb-2 fw-bold">Payment Method</h6>
-                                                <select
-                                                    className="form-select"
-                                                    value={paymentMethod}
-                                                    onChange={(e) => setPaymentMethod(e.target.value)}
-                                                >
-                                                    <option value="Cash on Delivery">Cash on Delivery</option>
-                                                    <option value="UPI">UPI Payment</option>
-                                                    <option value="Credit/Debit Card">Credit/Debit Card</option>
-                                                    <option value="Net Banking">Net Banking</option>
-                                                </select>
+
+                                            {/* Payment Options */}
+                                            <div className="mb-4">
+                                                <h6 className="mb-3 fw-bold">Payment Method</h6>
+                                                <div className="d-flex flex-column gap-2">
+                                                    <div 
+                                                        className={`form-check border rounded p-3 ${paymentMethod === 'Cash on Delivery' ? 'border-primary bg-light' : ''}`}
+                                                        style={{ cursor: 'pointer' }}
+                                                        onClick={() => setPaymentMethod('Cash on Delivery')}
+                                                    >
+                                                        <input 
+                                                            className="form-check-input" 
+                                                            type="radio" 
+                                                            name="paymentMethod" 
+                                                            id="cashOnDelivery" 
+                                                            checked={paymentMethod === 'Cash on Delivery'} 
+                                                            onChange={() => setPaymentMethod('Cash on Delivery')}
+                                                        />
+                                                        <label className="form-check-label w-100" htmlFor="cashOnDelivery">
+                                                            Cash on Delivery
+                                                        </label>
+                                                    </div>
+                                                    <div 
+                                                        className={`form-check border rounded p-3 ${paymentMethod === 'UPI' ? 'border-primary bg-light' : ''}`}
+                                                        style={{ cursor: 'pointer' }}
+                                                        onClick={() => setPaymentMethod('UPI')}
+                                                    >
+                                                        <input 
+                                                            className="form-check-input" 
+                                                            type="radio" 
+                                                            name="paymentMethod" 
+                                                            id="upiPayment" 
+                                                            checked={paymentMethod === 'UPI'} 
+                                                            onChange={() => setPaymentMethod('UPI')}
+                                                        />
+                                                        <label className="form-check-label w-100" htmlFor="upiPayment">
+                                                            UPI
+                                                        </label>
+                                                    </div>
+                                                    <div 
+                                                        className={`form-check border rounded p-3 ${paymentMethod === 'Credit/Debit Card' ? 'border-primary bg-light' : ''}`}
+                                                        style={{ cursor: 'pointer' }}
+                                                        onClick={() => setPaymentMethod('Credit/Debit Card')}
+                                                    >
+                                                        <input 
+                                                            className="form-check-input" 
+                                                            type="radio" 
+                                                            name="paymentMethod" 
+                                                            id="cardPayment" 
+                                                            checked={paymentMethod === 'Credit/Debit Card'} 
+                                                            onChange={() => setPaymentMethod('Credit/Debit Card')}
+                                                        />
+                                                        <label className="form-check-label w-100" htmlFor="cardPayment">
+                                                            Credit/Debit Card
+                                                        </label>
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             {/* Free Shipping Message */}
@@ -646,7 +665,7 @@ const ShoppingCart = () => {
                                         </div>
                                     </div>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     </div>
                 </div>

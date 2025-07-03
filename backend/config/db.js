@@ -15,8 +15,6 @@ const connectWithRetry = async (retryCount = 0) => {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 30000,
       family: 4,
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
     };
 
     await mongoose.connect(process.env.MONGO_URI, options);
@@ -26,8 +24,7 @@ const connectWithRetry = async (retryCount = 0) => {
 
     if (retryCount < maxRetries) {
       console.log(
-        `Retrying in ${backoffDelay / 1000}s... (${
-          retryCount + 1
+        `Retrying in ${backoffDelay / 1000}s... (${retryCount + 1
         }/${maxRetries})`
       );
       await new Promise((resolve) => setTimeout(resolve, backoffDelay));

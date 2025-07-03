@@ -26,28 +26,39 @@ const Register = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    if (!formdata.name || !formdata.email || !formdata.password || !formdata.role) {
+    // Trim whitespace from all fields
+    const trimmedData = {
+      name: formdata.name.trim(),
+      email: formdata.email.trim().toLowerCase(),
+      password: formdata.password,
+      role: formdata.role
+    };
+
+    if (!trimmedData.name || !trimmedData.email || !trimmedData.password || !trimmedData.role) {
       setError("Please fill in all fields.");
       setIsLoading(false);
       return;
     }
 
-    if (!isStrongPassword(formdata.password)) {
+    if (!isStrongPassword(trimmedData.password)) {
       setError("Password must be strong! (Use uppercase, lowercase, number, and special character)");
       setIsLoading(false);
       return;
     }
 
     try {
+     
+
       const response = await fetch("http://localhost:7000/api/Register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formdata),
+        body: JSON.stringify(trimmedData),
       });
 
       const data = await response.json();
+
 
       if (response.ok) {
         setSuccess("Registration Successful! 🎉");
@@ -59,9 +70,10 @@ const Register = () => {
           navigate("/login");
         }, 1500);
       } else {
-        setError(data.message || "Registration failed!");
+        setError(data.error || data.message || "Registration failed!");
       }
     } catch (err) {
+     
       setError("Something went wrong! Please try again.");
     } finally {
       setIsLoading(false);
@@ -166,7 +178,8 @@ const Register = () => {
                         >
                           <option value="">Select your role</option>
                           <option value="customer">Customer</option>
-                          <option value="admin">Restaurant Owner</option>
+                          <option value="admin">Admin</option>
+                          <option value="restaurant_owner">Restaurant Owner</option>
                         </Form.Select>
                       </Form.Group>
 

@@ -3,6 +3,9 @@ const User = require("../../Models/users");
 
 const registerUser = async (req, res) => {
   try {
+    // Log the incoming request for debugging
+    console.log('Registration request received:', req.body);
+
     // Ensure that req.body is not undefined
     if (!req.body) {
       return res.status(400).json({ error: "Request body is missing" });
@@ -13,13 +16,33 @@ const registerUser = async (req, res) => {
 
     // Check if all required fields are provided
     if (!name || !email || !password || !role) {
-      return res.status(400).json({ error: "All fields are required" });
+      return res.status(400).json({
+        error: "All fields are required",
+        details: {
+          name: !name ? "Name is required" : null,
+          email: !email ? "Email is required" : null,
+          password: !password ? "Password is required" : null,
+          role: !role ? "Role is required" : null
+        }
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: "Please provide a valid email address" });
+    }
+
+    // Validate role
+    const validRoles = ['customer', 'admin', 'restaurant_owner'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: "Role must be 'customer', 'admin', or 'restaurant_owner'" });
     }
 
     // Check if user already exists
     let existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ error: "User already registered" });
+      return res.status(400).json({ error: "User with this email already exists" });
     }
 
     // Hash the password
@@ -35,10 +58,43 @@ const registerUser = async (req, res) => {
     });
 
     await newUser.save();
-    res.status(201).json({ message: "User registered successfully", user: newUser });
+
+    // Don't send the password back in the response
+    const userResponse = {
+      _id: newUser._id,
+      name: newUser.name,
+      email: newUser.email,
+      role: newUser.role,
+      createdAt: newUser.createdAt
+    };
+
+    res.status(201).json({
+      message: "User registered successfully",
+      user: userResponse
+    });
   } catch (error) {
     console.error("Error in user registration:", error);
-    res.status(500).json({ error: "Internal Server Error", details: error.message });
+
+    // Handle mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        error: "Validation failed",
+        details: validationErrors
+      });
+    }
+
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({
+        error: "User with this email already exists"
+      });
+    }
+
+    res.status(500).json({
+      error: "Internal Server Error",
+      details: error.message
+    });
   }
 };
 
