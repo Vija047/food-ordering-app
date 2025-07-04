@@ -152,6 +152,16 @@ const ShoppingCart = () => {
 
     // Handle checkout
     const handleCheckout = async () => {
+        // Check if user is authenticated
+        const token = localStorage.getItem('token');
+        if (!token) {
+            // Store cart page for redirect after login
+            localStorage.setItem('redirectAfterLogin', '/cart');
+            // Redirect to login if not authenticated
+            navigate('/login');
+            return;
+        }
+
         if (cart.length === 0) {
             alert('Your cart is empty!');
             return;
@@ -229,16 +239,23 @@ const ShoppingCart = () => {
 
             // Use direct axios call instead of ordersAPI
             const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:7000";
+            const token = localStorage.getItem('token');
             const response = await fetch(`${API_URL}/api/orders`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify(orderDetails)
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
+                // If unauthorized, redirect to login
+                if (response.status === 401) {
+                    navigate('/login');
+                    return;
+                }
                 throw new Error(errorData.message || 'Failed to place order');
             }
 

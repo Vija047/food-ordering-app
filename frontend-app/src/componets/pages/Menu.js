@@ -27,6 +27,33 @@ const OrderWithCart = () => {
     // Define the API base URL
     const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:7000";
 
+    // Function to get full image URL
+    const getImageUrl = (imageUrl) => {
+        if (!imageUrl) {
+            console.log('No image URL provided, returning null');
+            return null;
+        }
+
+        // If it's already a full URL (starts with http), return as is
+        if (imageUrl.startsWith('http')) {
+            console.log('Full URL detected:', imageUrl);
+            return imageUrl;
+        }
+
+        // If it's a relative path, construct full URL
+        // Handle both cases: with and without leading slash
+        let fullUrl;
+        if (imageUrl.startsWith('/')) {
+            fullUrl = `${API_URL}${imageUrl}`;
+        } else {
+            // Assume it's a filename that should be served from /uploads
+            fullUrl = `${API_URL}/uploads/${imageUrl}`;
+        }
+
+        console.log('Constructed full URL:', fullUrl);
+        return fullUrl;
+    };
+
     useEffect(() => {
         const fetchRestaurants = async () => {
             setIsLoading(true);
@@ -91,6 +118,7 @@ const OrderWithCart = () => {
 
                     // Add some debugging to help identify restaurant ID issues
                     console.log(`Menu item: ${item.name}, Restaurant ID: ${item.restaurant}, Found restaurant: ${restaurant ? restaurant.name : 'Not found'}`);
+                    console.log(`Menu item image: ${item.image}`);
 
                     return {
                         ...item,
@@ -704,52 +732,72 @@ const OrderWithCart = () => {
                                                 </button>
                                             </div>
                                         ) : (
-                                            filteredMenuItems.map((item) => (
-                                                <div key={item._id} className="col-md-6 col-lg-6 col-xl-4">
-                                                    <div className="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
-                                                        <div className="position-relative">
-                                                            <div
-                                                                className="menu-item-img"
-                                                                style={{
-                                                                    height: "160px",
-                                                                    backgroundImage: `url(https://source.unsplash.com/random/300x200/?${item.name.replace(/\s/g, '-')})`,
-                                                                    backgroundSize: "cover",
-                                                                    backgroundPosition: "center"
-                                                                }}
-                                                            ></div>
-                                                            {Math.random() > 0.5 && (
-                                                                <span className="position-absolute top-0 start-0 m-2 badge rounded-pill px-3 py-2" style={{ backgroundColor: "#FF4500" }}>
-                                                                    <BiSolidOffer className="me-1" /> 15% OFF
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <div className="card-body p-3">
-                                                            <h5 className="card-title fw-bold mb-1">{item.name}</h5>
-                                                            <div className="mb-1">
-                                                                <span className="badge rounded-pill" style={{ backgroundColor: "#6c757d", fontSize: "0.7rem" }}>
-                                                                    {item.restaurantName || 'Unknown Restaurant'}
-                                                                </span>
-                                                            </div>
-                                                            <div className="d-flex justify-content-between align-items-center mb-2">
-                                                                <span className="fw-bold" style={{ color: "#FFA500" }}>₹{item.price}</span>
-                                                                <div className="rating">
-                                                                    ★★★★<span className="text-muted">★</span> <span className="small text-muted">(4.1)</span>
+                                            filteredMenuItems.map((item) => {
+                                                console.log(`Rendering item: ${item.name}, image: ${item.image}`);
+                                                const imageUrl = getImageUrl(item.image);
+                                                console.log(`Final image URL: ${imageUrl}`);
+
+                                                return (
+                                                    <div key={item._id} className="col-md-6 col-lg-6 col-xl-4">
+                                                        <div className="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                                                            <div className="position-relative">
+                                                                <div
+                                                                    className="menu-item-img"
+                                                                    style={{
+                                                                        height: "160px",
+                                                                        backgroundColor: "#f8f9fa",
+                                                                        overflow: "hidden"
+                                                                    }}
+                                                                >
+                                                                    <img
+                                                                        src={imageUrl || `https://via.placeholder.com/300x200/FFA500/FFFFFF?text=${encodeURIComponent(item.name)}`}
+                                                                        alt={item.name}
+                                                                        style={{
+                                                                            width: "100%",
+                                                                            height: "100%",
+                                                                            objectFit: "cover"
+                                                                        }}
+                                                                        onError={(e) => {
+                                                                            // If image fails to load, use placeholder
+                                                                            console.log(`Image failed to load for ${item.name}:`, e.target.src);
+                                                                            e.target.src = `https://via.placeholder.com/300x200/FFA500/FFFFFF?text=${encodeURIComponent(item.name)}`;
+                                                                        }}
+                                                                    />
                                                                 </div>
+                                                                {Math.random() > 0.5 && (
+                                                                    <span className="position-absolute top-0 start-0 m-2 badge rounded-pill px-3 py-2" style={{ backgroundColor: "#FF4500" }}>
+                                                                        <BiSolidOffer className="me-1" /> 15% OFF
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                            <p className="card-text small text-muted mb-3">
-                                                                {item.description || `Delicious ${item.name} prepared with premium ingredients.`}
-                                                            </p>
-                                                            <button
-                                                                className="btn btn-sm w-100 rounded-pill py-2"
-                                                                style={{ backgroundColor: "#FFA500", color: "white" }}
-                                                                onClick={() => handleAddToCart(item)}
-                                                            >
-                                                                <FaPlus size={14} className="me-2" /> Add to Cart
-                                                            </button>
+                                                            <div className="card-body p-3">
+                                                                <h5 className="card-title fw-bold mb-1">{item.name}</h5>
+                                                                <div className="mb-1">
+                                                                    <span className="badge rounded-pill" style={{ backgroundColor: "#6c757d", fontSize: "0.7rem" }}>
+                                                                        {item.restaurantName || 'Unknown Restaurant'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                                                    <span className="fw-bold" style={{ color: "#FFA500" }}>₹{item.price}</span>
+                                                                    <div className="rating">
+                                                                        ★★★★<span className="text-muted">★</span> <span className="small text-muted">(4.1)</span>
+                                                                    </div>
+                                                                </div>
+                                                                <p className="card-text small text-muted mb-3">
+                                                                    {item.description || `Delicious ${item.name} prepared with premium ingredients.`}
+                                                                </p>
+                                                                <button
+                                                                    className="btn btn-sm w-100 rounded-pill py-2"
+                                                                    style={{ backgroundColor: "#FFA500", color: "white" }}
+                                                                    onClick={() => handleAddToCart(item)}
+                                                                >
+                                                                    <FaPlus size={14} className="me-2" /> Add to Cart
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            ))
+                                                );
+                                            })
                                         )}
                                     </div>
                                 </div>
@@ -757,173 +805,6 @@ const OrderWithCart = () => {
                         )}
                     </div>
 
-                    {/* Floating Cart Button (when cart is not visible but has items) */}
-                    {!cartVisible && cart.length > 0 && (
-                        <div className="position-fixed bottom-0 end-0 p-3" style={{ zIndex: 1050 }}>
-                            <button
-                                className="btn btn-lg rounded-circle shadow-lg"
-                                style={{
-                                    backgroundColor: "#FFA500",
-                                    color: "white",
-                                    width: "60px",
-                                    height: "60px",
-                                    position: "relative"
-                                }}
-                                onClick={toggleCart}
-                            >
-                                <FaShoppingCart size={20} />
-                                <span
-                                    className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                                    style={{ fontSize: "0.7rem" }}
-                                >
-                                    {cart.reduce((total, item) => total + (item.quantity || 1), 0)}
-                                </span>
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Cart Section (Sliding) */}
-                    {cartVisible && (
-                        <div className="col-lg-4">
-                            <div className="card border-0 shadow-sm rounded-4 sticky-top" style={{ top: "20px" }}>
-                                <div className="card-header bg-white border-0 py-3">
-                                    <div className="d-flex justify-content-between align-items-center">
-                                        <h4 className="fw-bold mb-0" style={{ color: "#FFA500" }}>
-                                            <FaShoppingCart className="me-2" /> Your Cart
-                                        </h4>
-                                        <div className="d-flex align-items-center">
-                                            {cart.length > 0 && (
-                                                <button
-                                                    className="btn btn-sm btn-outline-danger me-2"
-                                                    onClick={handleClearCart}
-                                                    title="Clear Cart"
-                                                >
-                                                    Clear
-                                                </button>
-                                            )}
-                                            <span
-                                                className="btn-close"
-                                                onClick={toggleCart}
-                                                style={{ cursor: "pointer" }}
-                                            ></span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="card-body p-3">
-                                    {cart.length === 0 ? (
-                                        <div className="text-center py-5">
-                                            <div className="mb-3" style={{ color: "#DDD" }}>
-                                                <FaShoppingCart size={48} />
-                                            </div>
-                                            <h5>Your cart is empty</h5>
-                                            <p className="text-muted small">Add items from the menu to place an order</p>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className="cart-items mb-4" style={{ maxHeight: "300px", overflowY: "auto" }}>
-                                                {cart.map((item, index) => (
-                                                    <div key={index} className="card mb-2 border-0 bg-light rounded-3">
-                                                        <div className="card-body py-2 px-3">
-                                                            <div className="d-flex justify-content-between align-items-center">                                                    <div>
-                                                                <h6 className="mb-0 fw-medium">{item.name}</h6>
-                                                                <p className="text-muted small mb-0">₹{item.price} each</p>
-                                                                {item.restaurantName && (
-                                                                    <p className="text-muted small mb-0">
-                                                                        <FaStore size={10} className="me-1" />
-                                                                        {item.restaurantName}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                                <div className="d-flex align-items-center">
-                                                                    <div className="input-group input-group-sm quantity-control">
-                                                                        <button
-                                                                            className="btn btn-outline-secondary border-0"
-                                                                            onClick={() => handleUpdateQuantity(item._id, (item.quantity || 1) - 1)}
-                                                                        >−</button>
-                                                                        <input
-                                                                            type="text"
-                                                                            className="form-control text-center border-0 bg-light"
-                                                                            value={item.quantity || 1}
-                                                                            readOnly
-                                                                            style={{ width: "30px" }}
-                                                                        />
-                                                                        <button
-                                                                            className="btn btn-outline-secondary border-0"
-                                                                            onClick={() => handleUpdateQuantity(item._id, (item.quantity || 1) + 1)}
-                                                                        >+</button>
-                                                                    </div>
-                                                                    <button
-                                                                        className="btn btn-sm text-danger ms-2"
-                                                                        onClick={() => handleRemoveFromCart(item._id)}
-                                                                    >
-                                                                        <FaTrashAlt />
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-
-                                            {/* Cart Summary */}
-                                            <div className="card bg-light border-0 rounded-3 mb-3">
-                                                <div className="card-body">
-                                                    <div className="d-flex justify-content-between mb-2">
-                                                        <span>Subtotal</span>
-                                                        <span>₹{calculateTotal()}</span>
-                                                    </div>
-                                                    <div className="d-flex justify-content-between mb-2">
-                                                        <span>Delivery Fee</span>
-                                                        <span>₹40</span>
-                                                    </div>
-                                                    <div className="d-flex justify-content-between mb-2">
-                                                        <span>Taxes</span>
-                                                        <span>₹{Math.round(calculateTotal() * 0.05)}</span>
-                                                    </div>
-                                                    <hr />
-                                                    <div className="d-flex justify-content-between fw-bold">
-                                                        <span>Total</span>
-                                                        <span style={{ color: "#FFA500" }}>₹{calculateTotal() + 40 + Math.round(calculateTotal() * 0.05)}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Payment Method Section */}
-                                            <div className="mb-3">
-                                                <label className="form-label fw-medium">Payment Method</label>
-                                                <select
-                                                    className="form-select rounded-pill"
-                                                    value={paymentMethod}
-                                                    onChange={handlePaymentChange}
-                                                >
-                                                    <option value="Cash on Delivery">Cash on Delivery</option>
-                                                    <option value="UPI">UPI</option>
-                                                    <option value="Credit/Debit Card">Credit/Debit Card</option>
-                                                </select>
-                                            </div>
-
-                                            {/* Place Order Button */}
-                                            <button
-                                                className="btn btn-lg w-100 rounded-pill py-2 fw-medium"
-                                                style={{ backgroundColor: "#FFA500", color: "white" }}
-                                                onClick={handlePlaceOrder}
-                                                disabled={isPlacingOrder || cart.length === 0}
-                                            >
-                                                {isPlacingOrder ? (
-                                                    <>
-                                                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                                        Processing...
-                                                    </>
-                                                ) : (
-                                                    <>Place Order • ₹{calculateTotal() + 40 + Math.round(calculateTotal() * 0.05)}</>
-                                                )}
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>

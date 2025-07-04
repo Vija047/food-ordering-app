@@ -49,7 +49,10 @@ const Login = () => {
         } else if (role === "restaurant_owner") {
           navigate("/restaurant-owner");
         } else if (role === "customer") {
-          navigate("/home");
+          // Check if user came from cart or another page
+          const redirectPath = localStorage.getItem('redirectAfterLogin') || '/home';
+          localStorage.removeItem('redirectAfterLogin');
+          navigate(redirectPath);
         } else {
           setError("Invalid role detected.");
         }

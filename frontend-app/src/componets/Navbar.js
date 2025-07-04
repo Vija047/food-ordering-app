@@ -128,7 +128,15 @@ function Navbar() {
 
             <button
               className="btn position-relative p-2"
-              onClick={() => navigate("/cart")}
+              onClick={() => {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                  localStorage.setItem('redirectAfterLogin', '/cart');
+                  navigate('/login');
+                } else {
+                  navigate('/cart');
+                }
+              }}
               style={{ backgroundColor: "#FFF8E1", borderRadius: "12px" }}
             >
               <img src={Cart} alt="Cart" width={24} height={24} />

@@ -7,6 +7,11 @@ import AppRoutes from "./AppRoutes";
 
 function App() {
   const [loading, setLoading] = useState(true);
+  const userType = localStorage.getItem('usertype');
+  const token = localStorage.getItem('token');
+
+  // Show navbar if not restaurant owner, or if logged out
+  const showNavbar = !token || userType !== 'restaurant_owner';
 
   useEffect(() => {
     // Simulate loading time
@@ -18,8 +23,7 @@ function App() {
   return (
     <Router>
       <div className="App">
-       
-       <Navbar />
+        {showNavbar && <Navbar />}
         {/* <div className="container"> */}
         {loading ? (
           <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
