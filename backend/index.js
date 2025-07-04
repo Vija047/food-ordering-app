@@ -17,6 +17,9 @@ const orderRoutes = require('./Routes/orderRoutes');
 // Middleware to parse JSON
 app.use(express.json());
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
+
 // Add request logging middleware for debugging
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path}`, req.body);

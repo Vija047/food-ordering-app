@@ -285,7 +285,7 @@ const RestaurantOwnerDashboard = () => {
                 <Container>
                     <span className="navbar-brand h1 mb-0 d-flex align-items-center">
                         <FaStore className="me-2" size={24} />
-                        Restaurant Owner Dashboard
+                        Restaurant Owner Dashboard vijY
                     </span>
                     <div className="navbar-nav ms-auto d-flex flex-row align-items-center">
                         <div className="nav-item d-flex align-items-center me-3 bg-white bg-opacity-25 px-3 py-1 rounded-pill">

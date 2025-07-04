@@ -1,5 +1,37 @@
 const Restaurant = require('../../Models/Restaurants');
 const MenuItem = require('../../Models/MenuItems');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = 'uploads';
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'), false);
+        }
+    },
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    }
+});
 
 // Add a new restaurant (Admin or Restaurant Owner)
 const addRestaurant = async (req, res) => {
@@ -99,7 +131,11 @@ const getAdminDashboardStats = async (req, res) => {
 const addMenuItem = async (req, res) => {
     try {
         const restaurantId = req.params.id; // Get restaurant ID from URL parameter
-        const { name, price, description, image } = req.body; // Get other data from body
+        const { name, price, description, category } = req.body; // Get other data from body
+
+        console.log('Request body:', req.body);
+        console.log('Request file:', req.file);
+        console.log('Restaurant ID:', restaurantId);
 
         // Validate required fields
         if (!name || !price) {
@@ -124,7 +160,8 @@ const addMenuItem = async (req, res) => {
             name,
             price: parseFloat(price),
             description,
-            image // Save image
+            category: category || 'Main Course',
+            image: req.file ? req.file.filename : null // Save the filename
         });
 
         await newMenuItem.save();
@@ -175,5 +212,5 @@ const deleteMenuItem = async (req, res) => {
     }
 };
 
-module.exports = { addRestaurant, getRestaurants, getRestaurantsForAdmin, getAdminDashboardStats, addMenuItem, updateMenuItem, deleteMenuItem };
+module.exports = { addRestaurant, getRestaurants, getRestaurantsForAdmin, getAdminDashboardStats, addMenuItem, updateMenuItem, deleteMenuItem, upload };
 

@@ -6,7 +6,8 @@ const {
   deleteMenuItem,
   getRestaurants,
   getRestaurantsForAdmin,
-  getAdminDashboardStats
+  getAdminDashboardStats,
+  upload
 } = require('../controllers/Restaurant_Menu_Management/RestaurantController');
 const {
   getAllMenuItems,
@@ -30,7 +31,7 @@ router.get('/admin/restaurants', authenticate, authorizeAdmin, getRestaurantsFor
 router.get('/admin/dashboard/stats', authenticate, authorizeAdmin, getAdminDashboardStats);
 
 // Menu Routes
-router.post('/:id/menu', authenticate, authorizeAdminOrRestaurantOwner, addMenuItemController);
+router.post('/:id/menu', authenticate, authorizeAdminOrRestaurantOwner, upload.single('image'), addMenuItemController);
 router.put('/menu/:menuItemId', authenticate, authorizeAdmin, updateMenuItem);
 router.delete('/menu/:menuItemId', authenticate, authorizeAdmin, deleteMenuItem);
 router.get('/getmenu/:id', getMenuItems);
