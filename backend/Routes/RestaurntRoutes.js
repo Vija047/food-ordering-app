@@ -12,7 +12,8 @@ const {
 const {
   getAllMenuItems,
   addMenuItem,
-  getMenuItems
+  getMenuItems,
+  getMenuItemById // Import the missing controller function
 } = require('../controllers/Restaurant_Menu_Management/Menucontroller');
 const { updateAdminProfile } = require('../controllers/User_controller/Users_Register');
 
@@ -32,11 +33,12 @@ router.get('/admin/dashboard/stats', authenticate, authorizeAdmin, getAdminDashb
 
 // Menu Routes
 router.post('/:id/menu', authenticate, authorizeAdminOrRestaurantOwner, upload.single('image'), addMenuItemController);
-router.put('/menu/:menuItemId', authenticate, authorizeAdmin, updateMenuItem);
+router.put('/menu/:menuItemId', authenticate, authorizeAdmin, upload.single('image'), updateMenuItem);
 router.delete('/menu/:menuItemId', authenticate, authorizeAdmin, deleteMenuItem);
-router.get('/getmenu/:id', getMenuItems);
-router.get('/allmenu', getAllMenuItems);
 
+router.get('/allmenu', getAllMenuItems);
+router.get('/getmenu/:id', getMenuItems);
+router.get('/menu/:menuItemId', getMenuItemById); // Add the missing route for individual menu items
 // Admin Profile Routes
 router.put('/admin/profile', authenticate, authorizeAdmin, updateAdminProfile);
 

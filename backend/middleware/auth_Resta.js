@@ -21,16 +21,14 @@ const authenticate = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, secretKey);
 
-
-
-    // Fix: Use 'id' instead of 'userId' as per your JWT payload
-    const userId = decoded.userId || decoded.id;
+    // Use 'id' from JWT payload (as generated in login)
+    const userId = decoded.id;
 
     if (!userId) {
-      console.warn("JWT payload missing userId property!");
+      console.warn("JWT payload missing id property!");
       return res
         .status(401)
-        .json({ message: "Invalid token payload: userId missing" });
+        .json({ message: "Invalid token payload: id missing" });
     }
 
     // Fetch user from database to check current role
@@ -38,22 +36,6 @@ const authenticate = async (req, res, next) => {
 
     if (!user) {
       return res.status(401).json({ message: "User not found" });
-    }
-
-    // Check if attempting to access wrong role endpoints
-    const requestedRole = req.path.includes("restaurant")
-      ? "restaurant-owner"
-      : req.path.includes("customer")
-        ? "customer"
-        : null;
-
-    if (
-      requestedRole &&
-      (!user.role || user.role !== requestedRole)
-    ) {
-      return res.status(403).json({
-        message: `Access denied. You are registered as ${user.role || "unknown"}, cannot access ${requestedRole} features`,
-      });
     }
 
     req.user = user;
@@ -95,20 +77,25 @@ const authorizeAdminOrRestaurantOwner = (req, res, next) => {
 
 const protect = async (req, res, next) => {
   try {
-    const token = req.header("Authorization")?.split(" ")[1];
+    const authHeader = req.header("Authorization");
 
-    if (!token) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res
         .status(401)
         .json({ message: "Unauthorized: No token provided" });
     }
 
+    const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, secretKey);
-    req.user = decoded; // Attach user info
 
-    if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized: User not found" });
+    // Fetch user from database to get full user details
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
     }
+
+    req.user = user; // Attach full user object
 
     next(); // Proceed to the next middleware
   } catch (error) {

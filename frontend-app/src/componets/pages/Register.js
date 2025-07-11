@@ -47,9 +47,9 @@ const Register = () => {
     }
 
     try {
-     
 
-      const response = await fetch("http://localhost:7000/api/Register", {
+
+      const response = await fetch("http://localhost:7000/api/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -73,7 +73,7 @@ const Register = () => {
         setError(data.error || data.message || "Registration failed!");
       }
     } catch (err) {
-     
+
       setError("Something went wrong! Please try again.");
     } finally {
       setIsLoading(false);

@@ -13,7 +13,8 @@ const apiRequest = async (endpoint, options = {}) => {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
 
         return await response.json();
@@ -99,6 +100,13 @@ export const userAPI = {
     login: (credentials) => apiRequest('/login', {
         method: 'POST',
         body: JSON.stringify(credentials),
+    }),
+
+    // Get user details
+    getUserDetails: (token) => apiRequest('/user', {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
     }),
 
     // Update admin profile

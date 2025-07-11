@@ -85,4 +85,27 @@ const getMenuItems = async (req, res) => {
   }
 };
 
-module.exports = { getAllMenuItems, addMenuItem, getMenuItems };
+// Get individual menu item by ID
+const getMenuItemById = async (req, res) => {
+  try {
+    const menuItemId = req.params.menuItemId;
+
+    // Validate if menuItemId is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(menuItemId)) {
+      return res.status(400).json({ message: "Invalid menu item ID format" });
+    }
+
+    // Find the menu item
+    const menuItem = await MenuItem.findById(menuItemId).populate('restaurant');
+
+    if (!menuItem) {
+      return res.status(404).json({ message: "Menu item not found" });
+    }
+
+    return res.status(200).json(menuItem);
+  } catch (error) {
+    return res.status(500).json({ message: "Error fetching menu item", error: error.message });
+  }
+};
+
+module.exports = { getAllMenuItems, addMenuItem, getMenuItems, getMenuItemById };

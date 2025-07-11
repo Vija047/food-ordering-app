@@ -102,7 +102,6 @@ const RestaurantManagement = () => {
   const [user, setUser] = useState(null);
 
   // Auth Form State
-  const [authMode, setAuthMode] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -119,6 +118,18 @@ const RestaurantManagement = () => {
   const [menuDescription, setMenuDescription] = useState("");
   const [menuImage, setMenuImage] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
+
+  // Edit Menu Item State
+  const [editingMenuItem, setEditingMenuItem] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editMenuName, setEditMenuName] = useState("");
+  const [editMenuPrice, setEditMenuPrice] = useState("");
+  const [editMenuDescription, setEditMenuDescription] = useState("");
+  const [editMenuImage, setEditMenuImage] = useState(null);
+
+  // Delete confirmation state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [menuItemToDelete, setMenuItemToDelete] = useState(null);
 
   // UI State
   const [error, setError] = useState("");
@@ -162,6 +173,7 @@ const RestaurantManagement = () => {
   };
 
   // Auth Functions
+  // eslint-disable-next-line no-unused-vars
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -182,7 +194,6 @@ const RestaurantManagement = () => {
       }
 
       showMessage("Registration successful! Please login.", "success");
-      setAuthMode("login");
       setName("");
       setEmail("");
       setPassword("");
@@ -193,6 +204,7 @@ const RestaurantManagement = () => {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -363,33 +375,94 @@ const RestaurantManagement = () => {
     }
   };
 
-  const fetchMenuItems = async (restaurantId = null) => {
-    if (userType !== "admin") return;
+  const handleEditMenuItem = (menuItem) => {
+    setEditingMenuItem(menuItem);
+    setEditMenuName(menuItem.name);
+    setEditMenuPrice(menuItem.price.toString());
+    setEditMenuDescription(menuItem.description || "");
+    setEditMenuImage(null);
+    setShowEditModal(true);
+  };
 
+  const handleUpdateMenuItem = async (e) => {
+    e.preventDefault();
+    if (!editingMenuItem) return;
+
+    setLoading(true);
     try {
-      let url = `${API_BASE}/allmenu`;
+      const formData = new FormData();
+      formData.append("name", editMenuName);
+      formData.append("price", parseFloat(editMenuPrice));
+      formData.append("description", editMenuDescription);
 
-      // If a specific restaurant is selected, fetch menu items for that restaurant
-      if (restaurantId) {
-        url = `${API_BASE}/${restaurantId}/menu`;
+      if (editMenuImage) {
+        formData.append("image", editMenuImage);
       }
 
-      const response = await fetch(url, {
+      const response = await fetch(`${API_BASE}/menu/${editingMenuItem._id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to update menu item");
+      }
+
+      showMessage("Menu item updated successfully!", "success");
+      setShowEditModal(false);
+      setEditingMenuItem(null);
+      setEditMenuName("");
+      setEditMenuPrice("");
+      setEditMenuDescription("");
+      setEditMenuImage(null);
+
+      // Refresh menu items
+      fetchMenuItems(selectedRestaurant);
+    } catch (err) {
+      showMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteMenuItem = (menuItem) => {
+    setMenuItemToDelete(menuItem);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteMenuItem = async () => {
+    if (!menuItemToDelete) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/menu/${menuItemToDelete._id}`, {
+        method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setMenuItems(data);
-      } else {
-        console.error("Failed to fetch menu items:", response.statusText);
-        setMenuItems([]);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to delete menu item");
       }
+
+      showMessage("Menu item deleted successfully!", "success");
+      setShowDeleteModal(false);
+      setMenuItemToDelete(null);
+
+      // Refresh menu items
+      fetchMenuItems(selectedRestaurant);
     } catch (err) {
-      console.error("Error fetching menu items:", err);
-      setMenuItems([]);
+      showMessage(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -397,6 +470,13 @@ const RestaurantManagement = () => {
     const file = e.target.files[0];
     if (file) {
       setMenuImage(file);
+    }
+  };
+
+  const handleEditImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setEditMenuImage(file);
     }
   };
 
@@ -415,6 +495,37 @@ const RestaurantManagement = () => {
       }
     } catch (err) {
       console.error("Error fetching restaurants:", err);
+    }
+  };
+
+  // Fetch menu items
+  const fetchMenuItems = async (restaurantId = null) => {
+    if (userType !== "admin") return;
+
+    try {
+      let url = `${API_BASE}/allmenu`;
+
+      // If a specific restaurant is selected, fetch menu items for that restaurant
+      if (restaurantId) {
+        url = `${API_BASE}/getmenu/${restaurantId}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMenuItems(data);
+      } else {
+        console.error("Failed to fetch menu items:", response.statusText);
+        setMenuItems([]);
+      }
+    } catch (err) {
+      console.error("Error fetching menu items:", err);
+      setMenuItems([]);
     }
   };
 
@@ -438,6 +549,14 @@ const RestaurantManagement = () => {
     // eslint-disable-next-line
   }, [isLoggedIn, userType, activeTab, selectedRestaurant]);
 
+  // Initial data fetch
+  useEffect(() => {
+    if (isLoggedIn && userType === "admin") {
+      fetchRestaurants();
+      fetchMenuItems();
+    }
+    // eslint-disable-next-line
+  }, [isLoggedIn, userType]);
 
 
 
@@ -935,11 +1054,13 @@ const RestaurantManagement = () => {
                                     </p>
                                   )}
                                   <div className="d-flex gap-2 mt-2">
-                                    <button className="btn btn-sm btn-light flex-grow-1 d-flex align-items-center justify-content-center">
+                                    <button className="btn btn-sm btn-light flex-grow-1 d-flex align-items-center justify-content-center"
+                                      onClick={() => handleEditMenuItem(item)}>
                                       <Edit size={14} className="me-1" />
                                       Edit
                                     </button>
-                                    <button className="btn btn-sm btn-danger flex-grow-1 d-flex align-items-center justify-content-center">
+                                    <button className="btn btn-sm btn-danger flex-grow-1 d-flex align-items-center justify-content-center"
+                                      onClick={() => handleDeleteMenuItem(item)}>
                                       <Trash2 size={14} className="me-1" />
                                       Delete
                                     </button>
@@ -966,6 +1087,170 @@ const RestaurantManagement = () => {
                       )}
                     </div>
                   </div>
+
+                  {/* Edit Menu Item Modal */}
+                  {showEditModal && (
+                    <div className="modal fade show" tabIndex="-1" style={{ display: 'block' }}>
+                      <div className="modal-dialog modal-lg">
+                        <div className="modal-content border-0 rounded-4 shadow-sm">
+                          <div className="modal-header">
+                            <h5 className="modal-title fw-bold">Edit Menu Item</h5>
+                            <button
+                              type="button"
+                              className="btn-close"
+                              onClick={() => setShowEditModal(false)}
+                            ></button>
+                          </div>
+                          <div className="modal-body">
+                            <div className="mb-4">
+                              <label className="form-label fw-bold small text-uppercase text-muted">Item Name</label>
+                              <div className="input-group">
+                                <span className="input-group-text bg-light border-0">
+                                  <ChefHat size={18} />
+                                </span>
+                                <input
+                                  type="text"
+                                  className="form-control ps-2 border-0 bg-light"
+                                  placeholder="Enter menu item name"
+                                  style={{ height: '48px' }}
+                                  value={editMenuName}
+                                  onChange={(e) => setEditMenuName(e.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div className="mb-4">
+                              <label className="form-label fw-bold small text-uppercase text-muted">Price</label>
+                              <div className="input-group">
+                                <span className="input-group-text bg-light border-0">
+                                  <DollarSign size={18} />
+                                </span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className="form-control ps-2 border-0 bg-light"
+                                  placeholder="0.00"
+                                  style={{ height: '48px' }}
+                                  value={editMenuPrice}
+                                  onChange={(e) => setEditMenuPrice(e.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div className="mb-4">
+                              <label className="form-label fw-bold small text-uppercase text-muted">Image</label>
+                              <div className="input-group">
+                                <span className="input-group-text bg-light border-0">
+                                  <Upload size={18} />
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="form-control ps-2 border-0 bg-light"
+                                  onChange={handleEditImageChange}
+                                  style={{ height: '48px' }}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="mt-4">
+                              <label className="form-label fw-bold small text-uppercase text-muted">Description</label>
+                              <div className="input-group">
+                                <textarea
+                                  className="form-control ps-2 border-0 bg-light"
+                                  rows="3"
+                                  placeholder="Enter dish description"
+                                  value={editMenuDescription}
+                                  onChange={(e) => setEditMenuDescription(e.target.value)}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="modal-footer">
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => setShowEditModal(false)}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              className="btn"
+                              style={{
+                                background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                                color: 'white',
+                              }}
+                              onClick={handleUpdateMenuItem}
+                            >
+                              {loading ? (
+                                <span className="d-flex align-items-center justify-content-center">
+                                  <div className="spinner-border spinner-border-sm me-2" role="status">
+                                    <span className="visually-hidden">Loading...</span>
+                                  </div>
+                                  Saving...
+                                </span>
+                              ) : (
+                                <span className="d-flex align-items-center justify-content-center">
+                                  <CheckCircle className="me-2" size={20} />
+                                  Save Changes
+                                </span>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Delete Confirmation Modal */}
+                  {showDeleteModal && (
+                    <div className="modal fade show" tabIndex="-1" style={{ display: 'block' }}>
+                      <div className="modal-dialog">
+                        <div className="modal-content border-0 rounded-4 shadow-sm">
+                          <div className="modal-header">
+                            <h5 className="modal-title fw-bold">Confirm Deletion</h5>
+                            <button
+                              type="button"
+                              className="btn-close"
+                              onClick={() => setShowDeleteModal(false)}
+                            ></button>
+                          </div>
+                          <div className="modal-body">
+                            <p className="mb-0 text-muted">
+                              Are you sure you want to delete this menu item? This action cannot be undone.
+                            </p>
+                          </div>
+                          <div className="modal-footer">
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => setShowDeleteModal(false)}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-danger"
+                              onClick={confirmDeleteMenuItem}
+                            >
+                              {loading ? (
+                                <span className="d-flex align-items-center justify-content-center">
+                                  <div className="spinner-border spinner-border-sm me-2" role="status">
+                                    <span className="visually-hidden">Loading...</span>
+                                  </div>
+                                  Deleting...
+                                </span>
+                              ) : (
+                                <span className="d-flex align-items-center justify-content-center">
+                                  <Trash2 className="me-2" size={20} />
+                                  Delete Menu Item
+                                </span>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

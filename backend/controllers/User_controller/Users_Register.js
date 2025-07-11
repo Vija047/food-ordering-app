@@ -3,11 +3,8 @@ const User = require("../../Models/users");
 
 const registerUser = async (req, res) => {
   try {
-    // Log the incoming request for debugging
-    console.log('Registration request received:', req.body);
-
-    // Ensure that req.body is not undefined
-    if (!req.body) {
+   console.log('Registration request received:', req.body);
+  if (!req.body) {
       return res.status(400).json({ error: "Request body is missing" });
     }
 

@@ -27,10 +27,19 @@ const OrderWithCart = () => {
     // Define the API base URL
     const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:7000";
 
+    // Debug log to check API URL
+    console.log('API_URL:', API_URL);
+
     // Function to get full image URL
     const getImageUrl = (imageUrl) => {
         if (!imageUrl) {
             console.log('No image URL provided, returning null');
+            return null;
+        }
+
+        // Validate API_URL first
+        if (!API_URL || API_URL === 'undefined' || API_URL === 'null') {
+            console.error('API_URL is not properly configured:', API_URL);
             return null;
         }
 
@@ -737,6 +746,10 @@ const OrderWithCart = () => {
                                                 const imageUrl = getImageUrl(item.image);
                                                 console.log(`Final image URL: ${imageUrl}`);
 
+                                                // Create a safe placeholder URL
+                                                const placeholderUrl = `https://via.placeholder.com/300x200/FFA500/FFFFFF?text=${encodeURIComponent(item.name || 'Food Item')}`;
+                                                const finalImageUrl = imageUrl || placeholderUrl;
+
                                                 return (
                                                     <div key={item._id} className="col-md-6 col-lg-6 col-xl-4">
                                                         <div className="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
@@ -750,7 +763,7 @@ const OrderWithCart = () => {
                                                                     }}
                                                                 >
                                                                     <img
-                                                                        src={imageUrl || `https://via.placeholder.com/300x200/FFA500/FFFFFF?text=${encodeURIComponent(item.name)}`}
+                                                                        src={finalImageUrl}
                                                                         alt={item.name}
                                                                         style={{
                                                                             width: "100%",
@@ -760,7 +773,7 @@ const OrderWithCart = () => {
                                                                         onError={(e) => {
                                                                             // If image fails to load, use placeholder
                                                                             console.log(`Image failed to load for ${item.name}:`, e.target.src);
-                                                                            e.target.src = `https://via.placeholder.com/300x200/FFA500/FFFFFF?text=${encodeURIComponent(item.name)}`;
+                                                                            e.target.src = placeholderUrl;
                                                                         }}
                                                                     />
                                                                 </div>

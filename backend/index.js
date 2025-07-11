@@ -9,10 +9,12 @@ const PORT = process.env.PORT || 7000;
 // Connect to the database
 connectDB();
 
-// Import Routes
-const userRoutes = require('./Routes/UserRoutes');
-const restaurantRoutes = require("./Routes/RestaurntRoutes");
-const orderRoutes = require('./Routes/orderRoutes');
+// CORS middleware for handling cross-origin requests (MUST be before routes)
+app.use(cors({
+  origin: ["http://localhost:3000", "http://localhost:3001"], // Allow both ports
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
+}));
 
 // Middleware to parse JSON
 app.use(express.json());
@@ -20,18 +22,12 @@ app.use(express.json());
 // Serve static files from uploads directory
 app.use('/uploads', express.static('uploads'));
 
-// Add request logging middleware for debugging
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`, req.body);
-  next();
-});
 
-// CORS middleware for handling cross-origin requests
-app.use(cors({
-  origin: "http://localhost:3000", // Replace with your frontend URL
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true,
-}));
+
+// Import Routes
+const userRoutes = require('./Routes/UserRoutes');
+const restaurantRoutes = require("./Routes/RestaurntRoutes");
+const orderRoutes = require('./Routes/orderRoutes');
 
 // Register routes
 app.use('/api', userRoutes);

@@ -173,12 +173,7 @@ const Login = () => {
                         <button className="btn btn-outline-secondary rounded-circle" style={{ width: "40px", height: "40px" }}>
                           <i className="bi bi-google"></i>
                         </button>
-                        <button className="btn btn-outline-secondary rounded-circle" style={{ width: "40px", height: "40px" }}>
-                          <i className="bi bi-facebook"></i>
-                        </button>
-                        <button className="btn btn-outline-secondary rounded-circle" style={{ width: "40px", height: "40px" }}>
-                          <i className="bi bi-apple"></i>
-                        </button>
+                      
                       </div>
                     </div>
 

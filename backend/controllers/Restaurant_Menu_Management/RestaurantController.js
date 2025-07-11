@@ -187,7 +187,20 @@ const addMenuItem = async (req, res) => {
 const updateMenuItem = async (req, res) => {
     try {
         const { menuItemId } = req.params;
-        const updates = req.body; // name, price, description, image, etc.
+        const { name, price, description, category } = req.body;
+
+        // Build the update object
+        const updates = {};
+        if (name) updates.name = name;
+        if (price) updates.price = parseFloat(price);
+        if (description) updates.description = description;
+        if (category) updates.category = category;
+
+        // Handle image upload if provided
+        if (req.file) {
+            updates.image = req.file.filename;
+        }
+
         const updatedMenuItem = await MenuItem.findByIdAndUpdate(menuItemId, updates, { new: true });
         if (!updatedMenuItem) {
             return res.status(404).json({ message: 'Menu item not found' });
@@ -202,10 +215,22 @@ const updateMenuItem = async (req, res) => {
 const deleteMenuItem = async (req, res) => {
     try {
         const { menuItemId } = req.params;
-        const deletedMenuItem = await MenuItem.findByIdAndDelete(menuItemId);
-        if (!deletedMenuItem) {
+        const menuItem = await MenuItem.findById(menuItemId);
+
+        if (!menuItem) {
             return res.status(404).json({ message: 'Menu item not found' });
         }
+
+        // Remove the menu item reference from the restaurant
+        const restaurant = await Restaurant.findById(menuItem.restaurant);
+        if (restaurant) {
+            restaurant.menuItems.pull(menuItemId);
+            await restaurant.save();
+        }
+
+        // Delete the menu item
+        await MenuItem.findByIdAndDelete(menuItemId);
+
         return res.status(200).json({ message: 'Menu item deleted successfully' });
     } catch (error) {
         return res.status(500).json({ message: 'Error deleting menu item', error: error.message });
