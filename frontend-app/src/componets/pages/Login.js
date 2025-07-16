@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import googleimage from "../../assets/googleicon.png"
 
 const Login = () => {
   const [formdata, setFormdata] = useState({
@@ -169,11 +170,15 @@ const Login = () => {
 
                     <div className="text-center mt-4">
                       <p className="text-muted">Or sign in with</p>
-                      <div className="d-flex justify-content-center gap-3">
-                        <button className="btn btn-outline-secondary rounded-circle" style={{ width: "40px", height: "40px" }}>
-                          <i className="bi bi-google"></i>
+                      <div className="d-flex justify-content-center">
+                        <button
+                          type="button"
+                          className="btn btn-light d-flex align-items-center shadow-sm"
+                          style={{ borderRadius: "12px", border: "1px solid #ddd", padding: "8px 20px", minWidth: "260px", justifyContent: "center" }}
+                        >
+                          <img src={googleimage} alt="Google" style={{ width: "24px", height: "24px", marginRight: "12px" }} />
+                          <span style={{ color: "#5f6368", fontWeight: 500, fontSize: "16px", letterSpacing: 0 }}>Continue with Google</span>
                         </button>
-                      
                       </div>
                     </div>
 

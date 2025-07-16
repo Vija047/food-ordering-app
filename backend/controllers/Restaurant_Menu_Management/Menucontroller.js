@@ -108,4 +108,51 @@ const getMenuItemById = async (req, res) => {
   }
 };
 
-module.exports = { getAllMenuItems, addMenuItem, getMenuItems, getMenuItemById };
+// Delete a menu item by ID
+const deleteMenuItem = async (req, res) => {
+  try {
+    const menuItemId = req.params.menuItemId;
+
+    console.log("Delete request received for menu item ID:", menuItemId);
+    console.log("User requesting deletion:", req.user.email, "Role:", req.user.role);
+
+    // Validate if menuItemId is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(menuItemId)) {
+      console.error("Invalid menu item ID format:", menuItemId);
+      return res.status(400).json({ message: "Invalid menu item ID format" });
+    }
+
+    // Find the menu item
+    const menuItem = await MenuItem.findById(menuItemId);
+    if (!menuItem) {
+      console.error("Menu item not found:", menuItemId);
+      return res.status(404).json({ message: "Menu item not found" });
+    }
+
+    console.log("Found menu item to delete:", menuItem.name);
+
+    // Remove the menu item reference from the restaurant
+    const restaurant = await Restaurant.findById(menuItem.restaurant);
+    if (restaurant) {
+      console.log("Removing menu item from restaurant:", restaurant.name);
+      restaurant.menuItems.pull(menuItemId);
+      await restaurant.save();
+    }
+
+    // Delete the menu item
+    const deletedItem = await MenuItem.findByIdAndDelete(menuItemId);
+
+    if (!deletedItem) {
+      console.error("Failed to delete menu item:", menuItemId);
+      return res.status(500).json({ message: "Failed to delete menu item" });
+    }
+
+    console.log("Successfully deleted menu item:", deletedItem.name);
+    return res.status(200).json({ message: "Menu item deleted successfully" });
+  } catch (error) {
+    console.error('Error deleting menu item:', error);
+    return res.status(500).json({ message: "Error deleting menu item", error: error.message });
+  }
+};
+
+module.exports = { getAllMenuItems, addMenuItem, getMenuItems, getMenuItemById, deleteMenuItem };

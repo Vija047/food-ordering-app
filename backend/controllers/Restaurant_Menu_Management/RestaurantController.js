@@ -1,37 +1,17 @@
+const mongoose = require('mongoose');
 const Restaurant = require('../../Models/Restaurants');
 const MenuItem = require('../../Models/MenuItems');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadDir = 'uploads';
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
-});
+// Helper function to convert buffer to base64
+const bufferToBase64 = (buffer) => {
+    return buffer.toString('base64');
+};
 
-const upload = multer({
-    storage: storage,
-    fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith('image/')) {
-            cb(null, true);
-        } else {
-            cb(new Error('Only image files are allowed'), false);
-        }
-    },
-    limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit
-    }
-});
+// Helper function to validate image type
+const isValidImageType = (mimetype) => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    return allowedTypes.includes(mimetype);
+};
 
 // Add a new restaurant (Admin or Restaurant Owner)
 const addRestaurant = async (req, res) => {
@@ -131,10 +111,9 @@ const getAdminDashboardStats = async (req, res) => {
 const addMenuItem = async (req, res) => {
     try {
         const restaurantId = req.params.id; // Get restaurant ID from URL parameter
-        const { name, price, description, category } = req.body; // Get other data from body
+        const { name, price, description, category, image, imageType } = req.body; // Get data from body
 
         console.log('Request body:', req.body);
-        console.log('Request file:', req.file);
         console.log('Restaurant ID:', restaurantId);
 
         // Validate required fields
@@ -154,6 +133,23 @@ const addMenuItem = async (req, res) => {
             return res.status(404).json({ message: 'Restaurant not found' });
         }
 
+        // Validate image if provided
+        if (image && imageType) {
+            if (!isValidImageType(imageType)) {
+                return res.status(400).json({ message: 'Invalid image type. Only JPEG, PNG, GIF, and WebP are allowed.' });
+            }
+
+            // Check if image is valid base64
+            try {
+                const buffer = Buffer.from(image, 'base64');
+                if (buffer.length > 5 * 1024 * 1024) { // 5MB limit
+                    return res.status(400).json({ message: 'Image size must be less than 5MB' });
+                }
+            } catch (error) {
+                return res.status(400).json({ message: 'Invalid image format' });
+            }
+        }
+
         // Create new menu item
         const newMenuItem = new MenuItem({
             restaurant: restaurantId,
@@ -161,7 +157,8 @@ const addMenuItem = async (req, res) => {
             price: parseFloat(price),
             description,
             category: category || 'Main Course',
-            image: req.file ? req.file.filename : null // Save the filename
+            image: image || null, // Store base64 string
+            imageType: imageType || null // Store MIME type
         });
 
         await newMenuItem.save();
@@ -187,7 +184,7 @@ const addMenuItem = async (req, res) => {
 const updateMenuItem = async (req, res) => {
     try {
         const { menuItemId } = req.params;
-        const { name, price, description, category } = req.body;
+        const { name, price, description, category, image, imageType } = req.body;
 
         // Build the update object
         const updates = {};
@@ -196,9 +193,23 @@ const updateMenuItem = async (req, res) => {
         if (description) updates.description = description;
         if (category) updates.category = category;
 
-        // Handle image upload if provided
-        if (req.file) {
-            updates.image = req.file.filename;
+        // Handle image update if provided
+        if (image && imageType) {
+            if (!isValidImageType(imageType)) {
+                return res.status(400).json({ message: 'Invalid image type. Only JPEG, PNG, GIF, and WebP are allowed.' });
+            }
+
+            // Check if image is valid base64
+            try {
+                const buffer = Buffer.from(image, 'base64');
+                if (buffer.length > 5 * 1024 * 1024) { // 5MB limit
+                    return res.status(400).json({ message: 'Image size must be less than 5MB' });
+                }
+                updates.image = image;
+                updates.imageType = imageType;
+            } catch (error) {
+                return res.status(400).json({ message: 'Invalid image format' });
+            }
         }
 
         const updatedMenuItem = await MenuItem.findByIdAndUpdate(menuItemId, updates, { new: true });
@@ -211,31 +222,6 @@ const updateMenuItem = async (req, res) => {
     }
 };
 
-// Delete a menu item (Admin only)
-const deleteMenuItem = async (req, res) => {
-    try {
-        const { menuItemId } = req.params;
-        const menuItem = await MenuItem.findById(menuItemId);
 
-        if (!menuItem) {
-            return res.status(404).json({ message: 'Menu item not found' });
-        }
-
-        // Remove the menu item reference from the restaurant
-        const restaurant = await Restaurant.findById(menuItem.restaurant);
-        if (restaurant) {
-            restaurant.menuItems.pull(menuItemId);
-            await restaurant.save();
-        }
-
-        // Delete the menu item
-        await MenuItem.findByIdAndDelete(menuItemId);
-
-        return res.status(200).json({ message: 'Menu item deleted successfully' });
-    } catch (error) {
-        return res.status(500).json({ message: 'Error deleting menu item', error: error.message });
-    }
-};
-
-module.exports = { addRestaurant, getRestaurants, getRestaurantsForAdmin, getAdminDashboardStats, addMenuItem, updateMenuItem, deleteMenuItem, upload };
+module.exports = { addRestaurant, getRestaurants, getRestaurantsForAdmin, getAdminDashboardStats, addMenuItem, updateMenuItem };
 

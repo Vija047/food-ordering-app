@@ -746,36 +746,52 @@ const OrderWithCart = () => {
                                                 const imageUrl = getImageUrl(item.image);
                                                 console.log(`Final image URL: ${imageUrl}`);
 
-                                                // Create a safe placeholder URL
-                                                const placeholderUrl = `https://via.placeholder.com/300x200/FFA500/FFFFFF?text=${encodeURIComponent(item.name || 'Food Item')}`;
-                                                const finalImageUrl = imageUrl || placeholderUrl;
-
                                                 return (
                                                     <div key={item._id} className="col-md-6 col-lg-6 col-xl-4">
                                                         <div className="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
                                                             <div className="position-relative">
                                                                 <div
-                                                                    className="menu-item-img"
+                                                                    className="menu-item-img d-flex align-items-center justify-content-center"
                                                                     style={{
                                                                         height: "160px",
                                                                         backgroundColor: "#f8f9fa",
                                                                         overflow: "hidden"
                                                                     }}
                                                                 >
-                                                                    <img
-                                                                        src={finalImageUrl}
-                                                                        alt={item.name}
+                                                                    {imageUrl ? (
+                                                                        <img
+                                                                            src={imageUrl}
+                                                                            alt={item.name}
+                                                                            style={{
+                                                                                width: "100%",
+                                                                                height: "100%",
+                                                                                objectFit: "cover"
+                                                                            }}
+                                                                            onError={(e) => {
+                                                                                // If image fails to load, hide the image and show no image text
+                                                                                console.log(`Image failed to load for ${item.name}:`, e.target.src);
+                                                                                e.target.style.display = 'none';
+                                                                                e.target.nextSibling.style.display = 'block';
+                                                                            }}
+                                                                        />
+                                                                    ) : null}
+                                                                    <div
+                                                                        className="text-center text-muted"
                                                                         style={{
-                                                                            width: "100%",
-                                                                            height: "100%",
-                                                                            objectFit: "cover"
+                                                                            display: imageUrl ? 'none' : 'block',
+                                                                            fontSize: '14px',
+                                                                            fontWeight: '500'
                                                                         }}
-                                                                        onError={(e) => {
-                                                                            // If image fails to load, use placeholder
-                                                                            console.log(`Image failed to load for ${item.name}:`, e.target.src);
-                                                                            e.target.src = placeholderUrl;
-                                                                        }}
-                                                                    />
+                                                                    >
+                                                                        <div className="mb-2">
+                                                                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                                                                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                                                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                                                                <polyline points="21,15 16,10 5,21" />
+                                                                            </svg>
+                                                                        </div>
+                                                                        No image available
+                                                                    </div>
                                                                 </div>
                                                                 {Math.random() > 0.5 && (
                                                                     <span className="position-absolute top-0 start-0 m-2 badge rounded-pill px-3 py-2" style={{ backgroundColor: "#FF4500" }}>

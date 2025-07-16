@@ -3,17 +3,16 @@ const {
   addRestaurant,
   addMenuItem: addMenuItemController, // Avoid naming conflict
   updateMenuItem,
-  deleteMenuItem,
   getRestaurants,
   getRestaurantsForAdmin,
-  getAdminDashboardStats,
-  upload
+  getAdminDashboardStats
 } = require('../controllers/Restaurant_Menu_Management/RestaurantController');
 const {
   getAllMenuItems,
   addMenuItem,
   getMenuItems,
-  getMenuItemById // Import the missing controller function
+  getMenuItemById, // Import the missing controller function
+  deleteMenuItem
 } = require('../controllers/Restaurant_Menu_Management/Menucontroller');
 const { updateAdminProfile } = require('../controllers/User_controller/Users_Register');
 
@@ -32,8 +31,8 @@ router.get('/admin/restaurants', authenticate, authorizeAdmin, getRestaurantsFor
 router.get('/admin/dashboard/stats', authenticate, authorizeAdmin, getAdminDashboardStats);
 
 // Menu Routes
-router.post('/:id/menu', authenticate, authorizeAdminOrRestaurantOwner, upload.single('image'), addMenuItemController);
-router.put('/menu/:menuItemId', authenticate, authorizeAdmin, upload.single('image'), updateMenuItem);
+router.post('/:id/menu', authenticate, authorizeAdminOrRestaurantOwner, addMenuItemController);
+router.put('/menu/:menuItemId', authenticate, authorizeAdmin, updateMenuItem);
 router.delete('/menu/:menuItemId', authenticate, authorizeAdmin, deleteMenuItem);
 
 router.get('/allmenu', getAllMenuItems);

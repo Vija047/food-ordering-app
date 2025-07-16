@@ -17,10 +17,8 @@ app.use(cors({
 }));
 
 // Middleware to parse JSON
-app.use(express.json());
-
-// Serve static files from uploads directory
-app.use('/uploads', express.static('uploads'));
+app.use(express.json({ limit: '10mb' })); // Increase limit for base64 images
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 
 
@@ -35,7 +33,7 @@ app.use("/api", restaurantRoutes);
 app.use("/api", orderRoutes);
 
 // Basic test route
-app.get('/get', (req, res) => {
+app.get('/', (req, res) => {
   res.json({ at: 'Hello World! hey am Vijay' });
 });
 

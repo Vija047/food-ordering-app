@@ -10,31 +10,24 @@ const loginUser = async (req, res) => {
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
+
     if (role) {
-      // If role is 'admin', user must be admin
-      if (role === 'admin' && !user.isAdmin) {
-        return res.status(403).json({ error: "Access denied: Not an admin user" });
-      }
-      // If role is 'customer', user must not be admin
-      if (role === 'customer' && user.isAdmin) {
-        return res.status(403).json({ error: "Access denied: Not a customer user" });
-      }
-      // If role is provided but does not match user's role (if user.role exists)
-      if (user.role && user.role !== role) {
+      // If role is provided, check if user has that role
+      if (user.role !== role) {
         return res.status(403).json({ error: `Access denied: User is not a ${role}` });
       }
     }
 
     const token = jwt.sign(
-      { id: user._id, isAdmin: user.isAdmin },
+      { id: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    res.status(200).json({ 
-      message: `Login successful as ${user.role || (user.isAdmin ? 'admin' : 'user')}`,
+    res.status(200).json({
+      message: `Login successful as ${user.role}`,
       token,
-      user: { name: user.name, email: user.email, role: user.role, isAdmin: user.isAdmin } 
+      user: { name: user.name, email: user.email, role: user.role }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

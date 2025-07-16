@@ -117,6 +117,10 @@ const RestaurantManagement = () => {
   const [menuPrice, setMenuPrice] = useState("");
   const [menuDescription, setMenuDescription] = useState("");
   const [menuImage, setMenuImage] = useState(null);
+  // eslint-disable-next-line no-unused-vars
+  const [menuImageBase64, setMenuImageBase64] = useState("");
+  // eslint-disable-next-line no-unused-vars
+  const [menuImageType, setMenuImageType] = useState("");
   const [menuItems, setMenuItems] = useState([]);
 
   // Edit Menu Item State
@@ -126,6 +130,10 @@ const RestaurantManagement = () => {
   const [editMenuPrice, setEditMenuPrice] = useState("");
   const [editMenuDescription, setEditMenuDescription] = useState("");
   const [editMenuImage, setEditMenuImage] = useState(null);
+  // eslint-disable-next-line no-unused-vars
+  const [editMenuImageBase64, setEditMenuImageBase64] = useState("");
+  // eslint-disable-next-line no-unused-vars
+  const [editMenuImageType, setEditMenuImageType] = useState("");
 
   // Delete confirmation state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -166,10 +174,46 @@ const RestaurantManagement = () => {
     }
   };
 
+  // Helper function to convert file to base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64String = reader.result.split(',')[1]; // Remove data:image/type;base64, prefix
+        resolve(base64String);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  // Helper function to validate image file
+  const validateImageFile = (file) => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    if (!allowedTypes.includes(file.type)) {
+      return { isValid: false, message: 'Invalid image type. Only JPEG, PNG, GIF, and WebP are allowed.' };
+    }
+
+    if (file.size > maxSize) {
+      return { isValid: false, message: 'Image size must be less than 5MB.' };
+    }
+
+    return { isValid: true };
+  };
+
   // Function to get image URL or return default image
-  const getImageUrl = (imageName) => {
-    if (!imageName) return "/assets/cutlery.ico"; // Default image
-    return `${API_BASE}/uploads/${imageName}`;
+  const getImageUrl = (item) => {
+    if (!item.image) return "/assets/cutlery.ico"; // Default image
+
+    // If it's a base64 string, create data URL
+    if (item.image && item.imageType) {
+      return `data:${item.imageType};base64,${item.image}`;
+    }
+
+    // Fallback for old file-based images
+    return `${API_BASE}/uploads/${item.image}`;
   };
 
   // Auth Functions
@@ -179,12 +223,12 @@ const RestaurantManagement = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE}/Register`, {
+      const response = await fetch(`${API_BASE}/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, role: "admin" }),
       });
 
       const data = await response.json();
@@ -210,12 +254,12 @@ const RestaurantManagement = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE}/Login`, {
+      const response = await fetch(`${API_BASE}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, role: "admin" }),
       });
 
       const data = await response.json();
@@ -225,8 +269,8 @@ const RestaurantManagement = () => {
       }
 
       localStorage.setItem("token", data.token);
-      // Make sure admin role is set correctly
-      const userRole = data.user.role === "admin" ? "admin" : "customer";
+      // Set user type based on the role from the response
+      const userRole = data.user.role;
       localStorage.setItem("usertype", userRole);
 
       setToken(data.token);
@@ -336,24 +380,38 @@ const RestaurantManagement = () => {
     }
 
     try {
-      // Use FormData to upload image file
-      const formData = new FormData();
-      formData.append("name", menuName);
-      formData.append("price", parseFloat(menuPrice));
-      formData.append("description", menuDescription);
+      // Validate and convert image to base64 if selected
+      let imageBase64 = null;
+      let imageType = null;
 
-      // Add image file if selected
       if (menuImage) {
-        formData.append("image", menuImage);
+        const validation = validateImageFile(menuImage);
+        if (!validation.isValid) {
+          showMessage(validation.message);
+          setLoading(false);
+          return;
+        }
+
+        imageBase64 = await fileToBase64(menuImage);
+        imageType = menuImage.type;
       }
+
+      // Prepare request body
+      const requestBody = {
+        name: menuName,
+        price: parseFloat(menuPrice),
+        description: menuDescription,
+        image: imageBase64,
+        imageType: imageType
+      };
 
       const response = await fetch(`${API_BASE}/${selectedRestaurant}/menu`, {
         method: "POST",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          // Don't set Content-Type here as FormData will set it automatically with the boundary
         },
-        body: formData,
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -367,6 +425,8 @@ const RestaurantManagement = () => {
       setMenuPrice("");
       setMenuDescription("");
       setMenuImage(null);
+      setMenuImageBase64("");
+      setMenuImageType("");
       fetchMenuItems(selectedRestaurant); // Refresh menu items for the selected restaurant
     } catch (err) {
       showMessage(err.message);
@@ -381,6 +441,8 @@ const RestaurantManagement = () => {
     setEditMenuPrice(menuItem.price.toString());
     setEditMenuDescription(menuItem.description || "");
     setEditMenuImage(null);
+    setEditMenuImageBase64("");
+    setEditMenuImageType("");
     setShowEditModal(true);
   };
 
@@ -390,21 +452,38 @@ const RestaurantManagement = () => {
 
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append("name", editMenuName);
-      formData.append("price", parseFloat(editMenuPrice));
-      formData.append("description", editMenuDescription);
+      // Validate and convert image to base64 if selected
+      let imageBase64 = null;
+      let imageType = null;
 
       if (editMenuImage) {
-        formData.append("image", editMenuImage);
+        const validation = validateImageFile(editMenuImage);
+        if (!validation.isValid) {
+          showMessage(validation.message);
+          setLoading(false);
+          return;
+        }
+
+        imageBase64 = await fileToBase64(editMenuImage);
+        imageType = editMenuImage.type;
       }
+
+      // Prepare request body
+      const requestBody = {
+        name: editMenuName,
+        price: parseFloat(editMenuPrice),
+        description: editMenuDescription,
+        image: imageBase64,
+        imageType: imageType
+      };
 
       const response = await fetch(`${API_BASE}/menu/${editingMenuItem._id}`, {
         method: "PUT",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: formData,
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -420,6 +499,8 @@ const RestaurantManagement = () => {
       setEditMenuPrice("");
       setEditMenuDescription("");
       setEditMenuImage(null);
+      setEditMenuImageBase64("");
+      setEditMenuImageType("");
 
       // Refresh menu items
       fetchMenuItems(selectedRestaurant);
@@ -431,52 +512,148 @@ const RestaurantManagement = () => {
   };
 
   const handleDeleteMenuItem = (menuItem) => {
+    console.log("handleDeleteMenuItem called with:", menuItem);
+
+    if (!menuItem) {
+      console.error("No menu item provided");
+      showMessage("Invalid menu item selected");
+      return;
+    }
+
+    if (!menuItem._id) {
+      console.error("Menu item missing ID:", menuItem);
+      showMessage("Menu item is missing ID");
+      return;
+    }
+
+    console.log("Setting menu item to delete:", menuItem);
     setMenuItemToDelete(menuItem);
     setShowDeleteModal(true);
   };
 
   const confirmDeleteMenuItem = async () => {
-    if (!menuItemToDelete) return;
+    if (!menuItemToDelete) {
+      console.error("No menu item selected for deletion");
+      showMessage("No menu item selected for deletion");
+      return;
+    }
+
+    if (!token) {
+      console.error("No authentication token available");
+      showMessage("Please login again to delete items");
+      return;
+    }
+
+    console.log("Deleting menu item:", menuItemToDelete);
+    console.log("User type:", userType);
+    console.log("Token available:", !!token);
+
+    if (userType !== "admin") {
+      showMessage("Admin access required");
+      return;
+    }
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/menu/${menuItemToDelete._id}`, {
+      const deleteUrl = `${API_BASE}/menu/${menuItemToDelete._id}`;
+      console.log("DELETE URL:", deleteUrl);
+
+      const response = await fetch(deleteUrl, {
         method: "DELETE",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
       });
 
-      const data = await response.json();
+      console.log("Delete response status:", response.status);
+      console.log("Delete response ok:", response.ok);
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to delete menu item");
+        // Try to parse error response
+        let errorMessage = `Failed to delete menu item (Status: ${response.status})`;
+        try {
+          const errorData = await response.json();
+          console.log("Error response data:", errorData);
+          errorMessage = errorData.message || errorMessage;
+        } catch (parseError) {
+          console.warn("Could not parse error response:", parseError);
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
-      showMessage("Menu item deleted successfully!", "success");
+      // Handle successful response
+      let successMessage = "Menu item deleted successfully!";
+      try {
+        const successData = await response.json();
+        console.log("Success response data:", successData);
+        if (successData.message) {
+          successMessage = successData.message;
+        }
+      } catch (parseError) {
+        // Ignore JSON parsing errors for successful responses
+        console.log("Response is not JSON, but operation was successful");
+      }
+
+      showMessage(successMessage, "success");
       setShowDeleteModal(false);
       setMenuItemToDelete(null);
 
       // Refresh menu items
-      fetchMenuItems(selectedRestaurant);
+      if (selectedRestaurant) {
+        console.log("Refreshing menu items for restaurant:", selectedRestaurant);
+        await fetchMenuItems(selectedRestaurant);
+      } else {
+        console.log("Refreshing all menu items");
+        await fetchMenuItems();
+      }
     } catch (err) {
-      showMessage(err.message);
+      console.error("Delete menu item error:", err);
+      showMessage(err.message || "An error occurred while deleting the menu item");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
+      const validation = validateImageFile(file);
+      if (!validation.isValid) {
+        showMessage(validation.message);
+        return;
+      }
+
       setMenuImage(file);
+      try {
+        const base64String = await fileToBase64(file);
+        setMenuImageBase64(base64String);
+        setMenuImageType(file.type);
+      } catch (error) {
+        showMessage("Error processing image");
+      }
     }
   };
 
-  const handleEditImageChange = (e) => {
+  const handleEditImageChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
+      const validation = validateImageFile(file);
+      if (!validation.isValid) {
+        showMessage(validation.message);
+        return;
+      }
+
       setEditMenuImage(file);
+      try {
+        const base64String = await fileToBase64(file);
+        setEditMenuImageBase64(base64String);
+        setEditMenuImageType(file.type);
+      } catch (error) {
+        showMessage("Error processing image");
+      }
     }
   };
 
@@ -484,14 +661,15 @@ const RestaurantManagement = () => {
   const fetchRestaurants = async () => {
     if (userType !== "admin") return;
     try {
-      const response = await fetch(`${API_BASE}/restaurants`, {
+      const response = await fetch(`${API_BASE}/admin/restaurants`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       if (response.ok) {
         const data = await response.json();
-        setRestaurants(data);
+        // The admin endpoint returns an object with a restaurants property
+        setRestaurants(data.restaurants || data);
       }
     } catch (err) {
       console.error("Error fetching restaurants:", err);
@@ -500,7 +678,12 @@ const RestaurantManagement = () => {
 
   // Fetch menu items
   const fetchMenuItems = async (restaurantId = null) => {
-    if (userType !== "admin") return;
+    console.log("fetchMenuItems called with restaurantId:", restaurantId);
+
+    if (userType !== "admin") {
+      console.log("User is not admin, skipping fetch");
+      return;
+    }
 
     try {
       let url = `${API_BASE}/allmenu`;
@@ -510,17 +693,25 @@ const RestaurantManagement = () => {
         url = `${API_BASE}/getmenu/${restaurantId}`;
       }
 
+      console.log("Fetching menu items from:", url);
+
       const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
+      console.log("Menu items response status:", response.status);
+      console.log("Menu items response ok:", response.ok);
+
       if (response.ok) {
         const data = await response.json();
+        console.log("Fetched menu items:", data);
         setMenuItems(data);
       } else {
-        console.error("Failed to fetch menu items:", response.statusText);
+        console.error("Failed to fetch menu items:", response.status, response.statusText);
+        const errorData = await response.text();
+        console.error("Error response:", errorData);
         setMenuItems([]);
       }
     } catch (err) {
@@ -1017,16 +1208,34 @@ const RestaurantManagement = () => {
                                 }}
                               >
                                 <div className="position-relative">
-                                  <img
-                                    src={getImageUrl(item.image)}
-                                    className="card-img-top"
-                                    alt={item.name}
-                                    style={{ height: '180px', objectFit: 'cover' }}
-                                    onError={(e) => {
-                                      e.target.src = '/assets/cutlery.ico'; // Fallback image
-                                      e.target.onerror = null;
+                                  {getImageUrl(item) && getImageUrl(item) !== '/assets/cutlery.ico' ? (
+                                    <img
+                                      src={getImageUrl(item)}
+                                      className="card-img-top"
+                                      alt={item.name}
+                                      style={{ height: '180px', objectFit: 'cover' }}
+                                      onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div
+                                    className="d-flex align-items-center justify-content-center bg-light text-muted"
+                                    style={{
+                                      height: '180px',
+                                      display: (!getImageUrl(item) || getImageUrl(item) === '/assets/cutlery.ico') ? 'flex' : 'none',
+                                      flexDirection: 'column',
+                                      fontSize: '0.9rem'
                                     }}
-                                  />
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" className="bi bi-image mb-2" viewBox="0 0 16 16">
+                                      <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0" />
+                                      <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1z" />
+                                    </svg>
+                                    <span>No image available</span>
+                                  </div>
                                   <div
                                     className="position-absolute top-0 end-0 m-2 px-3 py-2 rounded-pill"
                                     style={{
